@@ -136,6 +136,7 @@ string& OpenKeyHelper::getFrontMostAppExecuteName() {
 	}
 	
 	if (wcscmp(_exePath, _T("")) == 0) {
+		_exeNameUtf8 = _unknownProgram; //also for the cached lookups of this process
 		return _unknownProgram;
 	}
 	_exeName = _tcsrchr(_exePath, '\\') + 1;

@@ -326,7 +326,8 @@ extern bool convertToolDontAlertWhenCompleted;
         NSError *error = nil;
         if (val && service.status != SMAppServiceStatusEnabled) {
             [service registerAndReturnError:&error];
-        } else if (!val && service.status == SMAppServiceStatusEnabled) {
+        } else if (!val && service.status != SMAppServiceStatusNotRegistered && service.status != SMAppServiceStatusNotFound) {
+            //also when it is still waiting for approval in System Settings
             [service unregisterAndReturnError:&error];
         }
         if (error) {

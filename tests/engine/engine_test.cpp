@@ -323,7 +323,10 @@ int main(int argc, char** argv) {
 
         // Quick start consonant
         { "quick start consonant: f -> ph", "fanh ", "phanh ", []() { vQuickStartConsonant = 1; } },
-        { "quick start consonant: w -> qu", "wen ", "quen ", []() { vQuickStartConsonant = 1; } },
+        // w is ư in Telex, so w -> qu only applies where w is not a tone key
+        { "quick start consonant: w -> qu in VNI", "wen ", "quen ", []() { vQuickStartConsonant = 1; vInputType = vVNI; } },
+        { "quick start consonant: Telex w is still ư", "wowts ", "ướt ", []() { vQuickStartConsonant = 1; } },
+        { "quick start consonant: Telex wa is ưa", "wa ", "ưa ", []() { vQuickStartConsonant = 1; } },
 
         // Capital TH / Q followed by uo
         { "caps: THUOWR", "THUOWR", "THUỞ", telex },

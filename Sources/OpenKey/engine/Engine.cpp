@@ -1188,9 +1188,7 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
     }
     
     if (!isChanged) {
-        if (data == KEY_W && _index == 0 && vQuickStartConsonant) {
-            insertKey(data, isCaps); //w -> qu is converted at the end of the word
-        } else if (data == KEY_W && vInputType != vSimpleTelex1) {
+        if (data == KEY_W && vInputType != vSimpleTelex1) {
             checkForStandaloneChar(data, isCaps, KEY_U);
         } else {
             insertKey(data, isCaps);
