@@ -118,6 +118,7 @@ static vector<Uint32> _specialChar;
 static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
+static bool _deletedComposedChar = false;
 
 //function prototype
 void findAndCalculateVowel(const bool& forGrammar=false);
@@ -901,12 +902,12 @@ void insertW(const Uint16& data, const bool& isCaps) {
             hCode = vWillProcess;
             
             if ((CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_O)) {
-                if (VSI - 2 >= 0 && TypingWord[VSI - 2] == KEY_T && TypingWord[VSI - 1] == KEY_H) {
+                if (VSI - 2 >= 0 && CHR(VSI - 2) == KEY_T && CHR(VSI - 1) == KEY_H) {
                     TypingWord[VSI+1] |= TONEW_MASK;
                     if (VSI + 2 < _index && CHR(VSI+2) == KEY_N) {
                         TypingWord[VSI] |= TONEW_MASK;
                     }
-                } else if (VSI - 1 >= 0 && TypingWord[VSI - 1] == KEY_Q) {
+                } else if (VSI - 1 >= 0 && CHR(VSI - 1) == KEY_Q) {
                     TypingWord[VSI+1] |= TONEW_MASK;
                 } else {
                     TypingWord[VSI] |= TONEW_MASK;
@@ -1187,10 +1188,33 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
     }
     
     if (!isChanged) {
-        if (data == KEY_W && vInputType != vSimpleTelex1) {
+        if (data == KEY_W && _index == 0 && vQuickStartConsonant) {
+            insertKey(data, isCaps); //w -> qu is converted at the end of the word
+        } else if (data == KEY_W && vInputType != vSimpleTelex1) {
             checkForStandaloneChar(data, isCaps, KEY_U);
         } else {
             insertKey(data, isCaps);
+        }
+    }
+}
+
+//insert or replace key for macro feature
+void updateMacroKey(const Uint16& data) {
+    if (!vUseMacro)
+        return;
+    if (hCode == vDoNothing) {
+        hMacroKey.push_back(data | (_isCaps ? CAPS_MASK : 0));
+    } else if (hCode == vWillProcess || hCode == vRestore) {
+        //the last hBPC characters on screen were replaced by hNCC characters (plus the key itself on restore),
+        //which are the last characters of TypingWord
+        for (i = 0; i < hBPC; i++) {
+            if (hMacroKey.size() > 0) {
+                hMacroKey.pop_back();
+            }
+        }
+        int newCount = hNCC + (hCode == vRestore ? 1 : 0);
+        for (i = _index - newCount < 0 ? 0 : _index - newCount; i < _index; i++) {
+            hMacroKey.push_back(TypingWord[i]);
         }
     }
 }
@@ -1334,7 +1358,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _hasHandledMacro = true;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && isMacroBreakCode(data)) {
             checkQuickConsonant();
-        } else if (vRestoreIfWrongSpelling && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
+        } else if (vRestoreIfWrongSpelling && event == vKeyEvent::Keyboard && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
             if (!tempDisableKey && vCheckSpelling) {
                 checkSpelling(true); //force check spelling
             }
@@ -1363,7 +1387,13 @@ void vKeyHandleEvent(const vKeyEvent& event,
             vCheckSpelling = _useSpellCheckingBefore;
             _willTempOffEngine = false;
         } else if (hCode == vReplaceMaro || _hasHandleQuickConsonant) {
+            //same as startNewSession() except hBPC and hNCC, which the caller still needs
             _index = 0;
+            _stateIndex = 0;
+            tempDisableKey = false;
+            _hasHandledMacro = false;
+            _hasHandleQuickConsonant = false;
+            _longWordHelper.clear();
         }
         
         //insert key for macro function
@@ -1437,6 +1467,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 _stateIndex--;
             }
             if (_index > 0){
+                //a character with a tone or mark was typed with more than one key
+                _deletedComposedChar = (TypingWord[_index - 1] & (MARK_MASK | TONE_MASK | TONEW_MASK | STANDALONE_MASK)) != 0;
                 _index--;
                 if (_longWordHelper.size() > 0) {
                     //right shift
@@ -1446,6 +1478,13 @@ void vKeyHandleEvent(const vKeyEvent& event,
                     TypingWord[0] = _longWordHelper.back();
                     _longWordHelper.pop_back();
                     _index++;
+                }
+                if (_deletedComposedChar) {
+                    //rebuild the typed keys from what is left so a later restore doesn't bring back deleted keys
+                    for (i = 0; i < _index; i++) {
+                        KeyStates[i] = CHR(i) | (TypingWord[i] & CAPS_MASK);
+                    }
+                    _stateIndex = _index;
                 }
                 if (vCheckSpelling)
                     checkSpelling();
@@ -1488,6 +1527,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (!IS_SPECIALKEY(data) || tempDisableKey) { //do nothing
             if (vQuickTelex && IS_QUICK_TELEX_KEY(data)) {
                 handleQuickTelex(data, _isCaps);
+                updateMacroKey(data);
                 return;
             } else {
                 hCode = vDoNothing;
@@ -1516,21 +1556,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _stateIndex--;
         }
         
-        //insert or replace key for macro feature
-        if (vUseMacro) {
-            if (hCode == vDoNothing) {
-                hMacroKey.push_back(data | (_isCaps ? CAPS_MASK : 0));
-            } else if (hCode == vWillProcess || hCode == vRestore) {
-                for (i = 0; i < hBPC; i++) {
-                    if (hMacroKey.size() > 0) {
-                        hMacroKey.pop_back();
-                    }
-                }
-                for (i = _index - hBPC; i < hNCC + (_index - hBPC); i++) {
-                    hMacroKey.push_back(TypingWord[i]);
-                }
-            }
-        }
+        updateMacroKey(data);
         
         if (vUpperCaseFirstChar) {
             if (_index == 1 && _upperCaseStatus == 2) {

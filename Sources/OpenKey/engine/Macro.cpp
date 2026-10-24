@@ -87,13 +87,17 @@ void initMacroMap(const Byte* pData, const int& size) {
     }
     Uint8 macroTextSize;
     Uint16 macroContentSize;
+    //stop at the first macro that doesn't fit in the data (corrupt or truncated preferences)
     for (int i = 0; i < macroCount; i++) {
+        if (cursor + 1 > (Uint32)size) break;
         macroTextSize = pData[cursor++];
+        if (cursor + macroTextSize + 2 > (Uint32)size) break;
         string macroText((char*)pData + cursor, macroTextSize);
         cursor += macroTextSize;
         
         memcpy(&macroContentSize, pData + cursor, 2);
         cursor+=2;
+        if (cursor + macroContentSize > (Uint32)size) break;
         string macroContent((char*)pData + cursor, macroContentSize);
         cursor += macroContentSize;
         
@@ -214,6 +218,9 @@ void getAllMacro(vector<vector<Uint32>>& keys, vector<string>& macroTexts, vecto
 }
 
 bool addMacro(const string& macroText, const string& macroContent) {
+    //the saved data stores these sizes in 1 and 2 bytes
+    if (macroText.size() > 0xFF || macroContent.size() > 0xFFFF)
+        return false;
     vector<Uint32> key;
     convert(macroText, key);
     if (macroMap.find(key) == macroMap.end()) { //add new macro
@@ -266,6 +273,9 @@ void readFromFile(const string& path, const bool& append) {
             macroMap.clear();
         }
         while (getline (myfile,line) ) {
+            //files saved on Windows end lines with \r\n
+            if (!line.empty() && line[line.length() - 1] == '\r')
+                line.erase(line.length() - 1);
             k++;
             if (k == 1) continue;
             pos = line.find(":");

@@ -43,6 +43,10 @@ static vKeyHookState* pData;
 
 // Key used in test strings for the delete (backspace) key.
 static const char BACKSPACE = '<';
+// Character used in test strings for a mouse click (the app starts a new word and ignores the output).
+static const char MOUSE_CLICK = '@';
+// Character used in test strings for tapping Cmd to turn the engine off for the next word.
+static const char TEMP_OFF = '^';
 
 struct KeyStroke {
     Uint16 code;
@@ -94,6 +98,12 @@ static void appendUtf8(std::string& s, Uint32 cp) {
     }
 }
 
+// The character the app gets when a key event is passed through or re-sent.
+static Uint16 keyChar(const KeyStroke& k) {
+    if (k.code == KEY_RETURN) return '\n';
+    return keyCodeToCharacter(k.code | (k.caps ? CAPS_MASK : 0));
+}
+
 // Mirrors SendNewCharString() in OpenKey.mm for the Unicode code table.
 static Uint16 engineDataToChar(Uint32 data) {
     if (data & PURE_CHARACTER_MASK) return (Uint16)data;
@@ -104,8 +114,17 @@ static Uint16 engineDataToChar(Uint32 data) {
 // Types `keys` into a fresh session and returns the resulting text.
 static std::string type(const std::string& keys) {
     std::vector<Uint16> text;
-    startNewSession();
+    // Start like after a click, which also clears what earlier tests left behind (such as the macro key).
+    vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
     for (char c : keys) {
+        if (c == MOUSE_CLICK) {
+            vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
+            continue;
+        }
+        if (c == TEMP_OFF) {
+            vTempOffEngine(true);
+            continue;
+        }
         KeyStroke k;
         if (!toKeyStroke(c, k)) {
             fprintf(stderr, "unsupported key '%c' in test input\n", c);
@@ -123,7 +142,7 @@ static std::string type(const std::string& keys) {
             if (k.code == KEY_DELETE) {
                 if (!text.empty()) text.pop_back();
             } else {
-                Uint16 ch = keyCodeToCharacter(k.code | (k.caps ? CAPS_MASK : 0));
+                Uint16 ch = keyChar(k);
                 if (ch) text.push_back(ch);
             }
         } else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
@@ -131,14 +150,14 @@ static std::string type(const std::string& keys) {
             for (int i = 0; i < pData->backspaceCount && !text.empty(); i++) text.pop_back();
             for (int i = pData->newCharCount - 1; i >= 0; i--) text.push_back(engineDataToChar(pData->charData[i]));
             if (pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
-                Uint16 ch = keyCodeToCharacter(k.code | (k.caps ? CAPS_MASK : 0));
+                Uint16 ch = keyChar(k);
                 if (ch) text.push_back(ch);
             }
             if (pData->code == vRestoreAndStartNewSession) startNewSession();
         } else if (pData->code == vReplaceMaro) {
             for (int i = 0; i < pData->backspaceCount && !text.empty(); i++) text.pop_back();
             for (Uint32 d : pData->macroData) text.push_back(engineDataToChar(d));
-            Uint16 ch = keyCodeToCharacter(k.code | (k.caps ? CAPS_MASK : 0));
+            Uint16 ch = keyChar(k);
             if (ch) text.push_back(ch);
         }
     }
@@ -165,6 +184,7 @@ static void resetSettings() {
     vQuickEndConsonant = 0;
     vSetCheckSpelling();
     vTempOffEngine(false);
+    initMacroMap(nullptr, 0);
 }
 
 struct TestCase {
@@ -205,6 +225,12 @@ int main(int argc, char** argv) {
             vUseModernOrthography = (r / 128) % 2;
             vAllowConsonantZFWJ = (r / 256) % 2;
             vFreeMark = (r / 512) % 2;
+            vUseMacro = (r / 1024) % 2;
+            if (vUseMacro) {
+                addMacro("ko", "không");
+                addMacro("thương", "thương mại");
+                addMacro(":)", "☺");
+            }
             std::string keys;
             int len = 1 + rand() % 120;
             for (int i = 0; i < len; i++) keys += alphabet[rand() % alphabet.size()];
@@ -278,11 +304,74 @@ int main(int argc, char** argv) {
         { "restore: valid word kept", "vieejt ", "việt ", restoreWrongSpelling },
 
         // Temporarily turn off the engine for one word (Cmd tap in the app)
-        { "temp off: windows", "windows", "windows", []() { vTempOffEngine(true); } },
-        { "temp off: next word is Vietnamese again", "windows vieejt", "windows việt", []() { vTempOffEngine(true); } },
+        { "temp off: windows", "^windows", "windows", telex },
+        { "temp off: next word is Vietnamese again", "^windows vieejt", "windows việt", telex },
+        { "temp off: in the middle of a sentence", "tieesng ^windows", "tiếng windows", telex },
+
+        // A mouse click starts a new word, even after an invalid word
+        { "mouse click: new word after invalid word", "network@tieengs", "networktiếng", restoreWrongSpelling },
+        { "mouse click: new word after misspelled toned word", "tiengs@tieengs", "tiéngtiếng", restoreWrongSpelling },
+
+        // Macros
+        { "macro: expands", "ko,", "không,", []() { vUseMacro = 1; addMacro("ko", "không"); } },
+        { "macro: expands twice after break keys", "ko\nko\n", "không\nkhông\n", []() { vUseMacro = 1; addMacro("ko", "không"); } },
+        { "macro: key typed with a horn on the earlier vowel", "thuowng ", "thương mại ", []() { vUseMacro = 1; addMacro("thương", "thương mại"); } },
+        { "macro: key typed with quick telex", "ccao ", "chào bạn ", []() { vUseMacro = 1; vQuickTelex = 1; addMacro("chao", "chào bạn"); } },
+
+        // Restore after deleting a character made from several keys
+        { "restore: after backspace over composed char", "tas<owq ", "towq ", restoreWrongSpelling },
+
+        // Quick start consonant
+        { "quick start consonant: f -> ph", "fanh ", "phanh ", []() { vQuickStartConsonant = 1; } },
+        { "quick start consonant: w -> qu", "wen ", "quen ", []() { vQuickStartConsonant = 1; } },
+
+        // Capital TH / Q followed by uo
+        { "caps: THUOWR", "THUOWR", "THUỞ", telex },
+        { "caps: QUOW", "QUOW", "QUƠ", telex },
     };
 
     int failed = 0;
+
+    // Saved macro and smart switch data cut short at every length must load without reading past the end.
+    {
+        resetSettings();
+        addMacro("ko", "không");
+        addMacro("thương", "thương mại");
+        std::vector<Byte> saved;
+        getMacroSaveData(saved);
+        for (size_t len = 0; len <= saved.size(); len++) {
+            std::vector<Byte> cut(saved.begin(), saved.begin() + len);
+            initMacroMap(cut.data(), (int)cut.size());
+        }
+        setAppInputMethodStatus("com.apple.Safari", 1);
+        std::vector<Byte> switchData;
+        getSmartSwitchKeySaveData(switchData);
+        for (size_t len = 0; len <= switchData.size(); len++) {
+            std::vector<Byte> cut(switchData.begin(), switchData.begin() + len);
+            initSmartSwitchKey(cut.data(), (int)cut.size());
+        }
+        printf("ok    truncated saved data\n");
+    }
+
+    // Macro files saved on Windows (CRLF line endings) import without a trailing \r.
+    {
+        resetSettings();
+        const char* path = "/tmp/openkey_engine_test_macros.txt";
+        FILE* f = fopen(path, "wb");
+        fputs(";OpenKey macro\r\nko:không\r\n", f);
+        fclose(f);
+        readFromFile(path, false);
+        remove(path);
+        vUseMacro = 1;
+        std::string actual = type("ko,");
+        if (actual != "không,") {
+            failed++;
+            printf("FAIL  %-44s expected=\"không,\" actual=\"%s\"\n", "macro: import CRLF file", actual.c_str());
+        } else {
+            printf("ok    macro: import CRLF file\n");
+        }
+    }
+
     for (const TestCase& t : tests) {
         resetSettings();
         t.setup();
