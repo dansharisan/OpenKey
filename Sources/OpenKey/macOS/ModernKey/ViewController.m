@@ -338,7 +338,7 @@ static const CGFloat kPaneMargin = 24;
     version.textColor = [NSColor secondaryLabelColor];
     version.selectable = YES;
     self.VersionInfo = version;
-    self.VersionInfo.stringValue = [NSString stringWithFormat:@"Phiên bản %@ (build %@), build ngày %@",
+    self.VersionInfo.stringValue = [NSString stringWithFormat:@"Phiên bản %@ (build %@), ngày build %@",
                                     [[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleShortVersionString"],
                                     [[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleVersion"],
                                     [OpenKeyManager getBuildDate]];

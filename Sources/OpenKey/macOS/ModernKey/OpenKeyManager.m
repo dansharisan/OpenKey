@@ -107,8 +107,19 @@ static CFRunLoopSourceRef runLoopSource;
             @"Vietnamese Locale CP 1258", nil];
 }
 
+//the compile date as dd/MM/yyyy (__DATE__ is "Oct 24 2026", or "Oct  4 2026" for one digit days)
 +(NSString*)getBuildDate {
-    return [NSString stringWithUTF8String:__DATE__];
+    NSString* compileDate = [NSString stringWithUTF8String:__DATE__];
+    compileDate = [compileDate stringByReplacingOccurrencesOfString:@"  " withString:@" "];
+    NSDateFormatter* parser = [[NSDateFormatter alloc] init];
+    parser.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    parser.dateFormat = @"MMM d yyyy";
+    NSDate* date = [parser dateFromString:compileDate];
+    if (date == nil)
+        return compileDate;
+    NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+    formatter.dateFormat = @"dd/MM/yyyy";
+    return [formatter stringFromDate:date];
 }
 
 #pragma mark -Convert feature
