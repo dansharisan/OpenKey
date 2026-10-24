@@ -128,9 +128,12 @@ string& OpenKeyHelper::getFrontMostAppExecuteName() {
 		return _exeNameUtf8;
 	}
 	_cacheProcessId = _tempProcessId;
+	_exePath[0] = 0; //don't report the previous app when this one can't be opened (elevated apps)
 	_proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _tempProcessId);
-	GetProcessImageFileName((HMODULE)_proc, _exePath, 1024);
-	CloseHandle(_proc);
+	if (_proc) {
+		GetProcessImageFileName((HMODULE)_proc, _exePath, 1024);
+		CloseHandle(_proc);
+	}
 	
 	if (wcscmp(_exePath, _T("")) == 0) {
 		return _unknownProgram;
@@ -239,6 +242,12 @@ bool OpenKeyHelper::quickConvert() {
 		dataUnicode = utf8ToWideString(convertUtil(wideStringToUtf8(dataUnicode)));
 	}
 
+	//nothing to convert (e.g. an image): leave the clipboard as it is
+	if (!pHTML && !pUnicode) {
+		CloseClipboard();
+		return false;
+	}
+
 	OpenClipboard(0);
 	EmptyClipboard();
 
@@ -306,9 +315,11 @@ wstring OpenKeyHelper::getVersionString() {
 }
 
 wstring OpenKeyHelper::getContentOfUrl(LPCTSTR url){
+	//GetTempPath2 only exists on Windows 11, importing it stops the app from starting on Windows 10
+	WCHAR tempDir[MAX_PATH];
 	WCHAR path[MAX_PATH];
-	GetTempPath2(MAX_PATH, path);
-	wsprintf(path, TEXT("%s\\_OpenKey.tempf"), path);
+	GetTempPath(MAX_PATH, tempDir); //ends with a backslash
+	_snwprintf_s(path, MAX_PATH, _TRUNCATE, TEXT("%s_OpenKey.tempf"), tempDir);
 	HRESULT res = URLDownloadToFile(NULL, url, path, 0, NULL);
 	
 	if (res == S_OK) {

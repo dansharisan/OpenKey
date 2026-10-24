@@ -75,7 +75,8 @@ INT_PTR MacroDialog::eventProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		switch (((LPNMHDR)lParam)->code) {
 		case LVN_ITEMCHANGED: {
 			NMLISTVIEW* pData = (NMLISTVIEW*)lParam;
-			if (pData->uNewState != 0)
+			//iItem is -1 when the change applies to all items (Ctrl+A)
+			if (pData->uNewState != 0 && pData->iItem >= 0 && pData->iItem < (int)macroText.size())
 				onSelectItem(pData->iItem);
 		}
 			break;
@@ -202,7 +203,7 @@ void MacroDialog::onImportMacroButton() {
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = hDlg;
 	ofn.lpstrFile = szFile;
-	ofn.nMaxFile = sizeof(szFile);
+	ofn.nMaxFile = _countof(szFile);
 	ofn.lpstrFilter = _T("Text file (*.txt)\0*.txt\0All (*.*)\0*.*\0");
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFileTitle = NULL;
@@ -230,7 +231,7 @@ void MacroDialog::onExportMacrobutton() {
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = hDlg;
 	ofn.lpstrFile = szFile;
-	ofn.nMaxFile = sizeof(szFile);
+	ofn.nMaxFile = _countof(szFile);
 	ofn.lpstrFilter = _T("Text file (*.txt)\0*.txt\0");
 	ofn.lpstrFileTitle = (LPTSTR)_T("lpstrFile");
 	ofn.nFilterIndex = 1;
@@ -238,7 +239,7 @@ void MacroDialog::onExportMacrobutton() {
 	ofn.nMaxFileTitle = 0;
 	ofn.lpstrInitialDir = NULL;
 	ofn.lpstrDefExt = (LPCWSTR)L"txt";
-	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT; //allow saving to a new file
 	if (GetSaveFileName(&ofn) == TRUE) {
 		wstring path = ofn.lpstrFile;
 		saveToFile(wideStringToUtf8(path));
