@@ -11,6 +11,7 @@
 #import "Engine.h"
 #import "AppDelegate.h"
 #import "ViewController.h"
+#import "OpenKeyManager.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -114,19 +115,21 @@ extern "C" {
         
         LOAD_DATA(vPerformLayoutCompat, vPerformLayoutCompat);
         
-        myEventSource = CGEventSourceCreate(kCGEventSourceStatePrivate);
+        //this runs again after every wake, keep the objects created the first time
+        if (myEventSource == NULL) {
+            myEventSource = CGEventSourceCreate(kCGEventSourceStatePrivate);
+            eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
+            eventBackSpaceUp = CGEventCreateKeyboardEvent (myEventSource, 51, false);
+        }
         pData = (vKeyHookState*)vKeyInit();
-
-        eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
-        eventBackSpaceUp = CGEventCreateKeyboardEvent (myEventSource, 51, false);
         
         //init and load macro data
         NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-        NSData *data = [prefs objectForKey:@"macroData"];
+        NSData *data = [prefs dataForKey:@"macroData"];
         initMacroMap((Byte*)data.bytes, (int)data.length);
         
         //init and load smart switch key data
-        data = [prefs objectForKey:@"smartSwitchKey"];
+        data = [prefs dataForKey:@"smartSwitchKey"];
         initSmartSwitchKey((Byte*)data.bytes, (int)data.length);
         
         //init convert tool
@@ -175,11 +178,19 @@ extern "C" {
         return false;
     }
 
+    //-1: not checked yet for the current event; asking the window server is slow, so do it once per keystroke
+    int _spotlightVisible = -1;
+
     BOOL isSpotlightVisible() {
+        if (_spotlightVisible >= 0) {
+            return _spotlightVisible;
+        }
+        _spotlightVisible = 0;
         NSArray *windows = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
                                                                         kCGNullWindowID));
         for (NSDictionary *window in windows) {
             if ([[window objectForKey:(__bridge NSString *)kCGWindowOwnerName] isEqualToString:@"Spotlight"]) {
+                _spotlightVisible = 1;
                 return true;
             }
         }
@@ -370,7 +381,7 @@ extern "C" {
         CGEventTapPostEvent(_proxy, eventBackSpaceDown);
         CGEventTapPostEvent(_proxy, eventBackSpaceUp);
         
-        if (IS_DOUBLE_CODE(vCodeTable)) { //VNI or Unicode Compound
+        if (IS_DOUBLE_CODE(vCodeTable) && !_syncKey.empty()) { //VNI or Unicode Compound
             if (_syncKey.back() > 1) {
                 if (!(vCodeTable == 3 && containUnicodeCompoundApp(FRONT_APP))) {
                     CGEventTapPostEvent(_proxy, eventBackSpaceDown);
@@ -392,7 +403,7 @@ extern "C" {
         CGEventTapPostEvent(_proxy, eventVkeyDown);
         CGEventTapPostEvent(_proxy, eventVkeyUp);
         
-        if (IS_DOUBLE_CODE(vCodeTable)) { //VNI or Unicode Compound
+        if (IS_DOUBLE_CODE(vCodeTable) && !_syncKey.empty()) { //VNI or Unicode Compound
             if (_syncKey.back() > 1) {
                 if (!(vCodeTable == 3 && containUnicodeCompoundApp(FRONT_APP))) {
                     CGEventTapPostEvent(_proxy, eventVkeyDown);
@@ -495,15 +506,19 @@ extern "C" {
         
         _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
         _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-        CGEventKeyboardSetUnicodeString(_newEventDown, _willContinuteSending ? 16 : _newCharSize - offset, _newCharString);
-        CGEventKeyboardSetUnicodeString(_newEventUp, _willContinuteSending ? 16 : _newCharSize - offset, _newCharString);
+        //_j counts UTF-16 units, which can be more than the characters taken from the queue
+        //(VNI Windows, CP1258 and Unicode compound send two units for some characters)
+        CGEventKeyboardSetUnicodeString(_newEventDown, _j, _newCharString);
+        CGEventKeyboardSetUnicodeString(_newEventUp, _j, _newCharString);
         CGEventTapPostEvent(_proxy, _newEventDown);
         CGEventTapPostEvent(_proxy, _newEventUp);
         CFRelease(_newEventDown);
         CFRelease(_newEventUp);
 
         if (_willContinuteSending) {
-            SendNewCharString(dataFromMacro, dataFromMacro ? _k : 16);
+            //continue from the first character not sent yet; the last chunk sends the restore/control key
+            SendNewCharString(dataFromMacro, dataFromMacro ? _k : pData->newCharCount - 1 - _k);
+            return;
         }
         
         //the case when hCode is vRestore or vRestoreAndStartNewSession, the word is invalid and last key is control key such as TAB, LEFT ARROW, RIGHT ARROW,...
@@ -599,6 +614,13 @@ extern "C" {
      * MAIN Callback.
      */
     CGEventRef OpenKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+        //macOS turns the tap off when a callback is too slow; without this OpenKey stops working until relaunch
+        if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+            [OpenKeyManager enableEventTap];
+            return event;
+        }
+        _spotlightVisible = -1;
+        
         //dont handle my event
         if (CGEventGetIntegerValueField(event, kCGEventSourceStateID) == CGEventSourceGetSourceStateID(myEventSource)) {
             return event;
@@ -624,7 +646,7 @@ extern "C" {
                     return NULL;
                 }
                 if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)){
-                    [appDelegate onQuickConvert];
+                    dispatch_async(dispatch_get_main_queue(), ^{ [appDelegate onQuickConvert]; });
                     _lastFlag = 0;
                     _hasJustUsedHotKey = true;
                     return NULL;
@@ -644,7 +666,7 @@ extern "C" {
                 }
                 if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
                     _lastFlag = 0;
-                    [appDelegate onQuickConvert];
+                    dispatch_async(dispatch_get_main_queue(), ^{ [appDelegate onQuickConvert]; });
                     _hasJustUsedHotKey = true;
                     return NULL;
                 }
@@ -696,15 +718,15 @@ extern "C" {
             if ( isource != NULL )
             {
                 CFArrayRef languages = (CFArrayRef) TISGetInputSourceProperty(isource, kTISPropertyInputSourceLanguages);
-                
-                if (CFArrayGetCount(languages) > 0) {
-                    CFStringRef langRef = (CFStringRef)CFArrayGetValueAtIndex(languages, 0);
-                    NSString *currentLanguage = (__bridge NSString *)langRef;
-                    if(![currentLanguage isLike:@"en"]){
-                        return event;
-                    }
-                    CFRelease(langRef);
-                    CFRelease(isource);
+                BOOL isOtherLanguage = NO;
+                if (languages != NULL && CFArrayGetCount(languages) > 0) {
+                    //owned by isource, so read it before releasing isource
+                    NSString *currentLanguage = (__bridge NSString *)CFArrayGetValueAtIndex(languages, 0);
+                    isOtherLanguage = ![currentLanguage isLike:@"en"];
+                }
+                CFRelease(isource);
+                if (isOtherLanguage) {
+                    return event;
                 }
             }
         }

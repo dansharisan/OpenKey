@@ -291,14 +291,14 @@ extern bool convertToolDontAlertWhenCompleted;
     vFreeMark = 0; [[NSUserDefaults standardUserDefaults] setInteger:vFreeMark forKey:@"FreeMark"];
     vCheckSpelling = 1; [[NSUserDefaults standardUserDefaults] setInteger:vCheckSpelling forKey:@"Spelling"];
     vCodeTable = 0; [[NSUserDefaults standardUserDefaults] setInteger:vCodeTable forKey:@"CodeTable"];
-    vSwitchKeyStatus = DEFAULT_SWITCH_STATUS; [[NSUserDefaults standardUserDefaults] setInteger:vCodeTable forKey:@"SwitchKeyStatus"];
+    vSwitchKeyStatus = DEFAULT_SWITCH_STATUS; [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
     vQuickTelex = 0; [[NSUserDefaults standardUserDefaults] setInteger:vQuickTelex forKey:@"QuickTelex"];
     vUseModernOrthography = 0; [[NSUserDefaults standardUserDefaults] setInteger:vUseModernOrthography forKey:@"ModernOrthography"];
     vRestoreIfWrongSpelling = 0; [[NSUserDefaults standardUserDefaults] setInteger:vRestoreIfWrongSpelling forKey:@"RestoreIfInvalidWord"];
     vFixRecommendBrowser = 1; [[NSUserDefaults standardUserDefaults] setInteger:vFixRecommendBrowser forKey:@"FixRecommendBrowser"];
     vUseMacro = 1; [[NSUserDefaults standardUserDefaults] setInteger:vUseMacro forKey:@"UseMacro"];
     vUseMacroInEnglishMode = 0; [[NSUserDefaults standardUserDefaults] setInteger:vUseMacroInEnglishMode forKey:@"UseMacroInEnglishMode"];
-    vSendKeyStepByStep = 0;[[NSUserDefaults standardUserDefaults] setInteger:vUseMacroInEnglishMode forKey:@"SendKeyStepByStep"];
+    vSendKeyStepByStep = 0;[[NSUserDefaults standardUserDefaults] setInteger:vSendKeyStepByStep forKey:@"SendKeyStepByStep"];
     vUseSmartSwitchKey = 1;[[NSUserDefaults standardUserDefaults] setInteger:vUseSmartSwitchKey forKey:@"UseSmartSwitchKey"];
     vUpperCaseFirstChar = 0;[[NSUserDefaults standardUserDefaults] setInteger:vUpperCaseFirstChar forKey:@"UpperCaseFirstChar"];
     vTempOffSpelling = 0;[[NSUserDefaults standardUserDefaults] setInteger:vTempOffSpelling forKey:@"vTempOffSpelling"];
@@ -314,14 +314,28 @@ extern bool convertToolDontAlertWhenCompleted;
 
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"GrayIcon"];
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"RunOnStartup"];
+    [self setRunOnStartup:YES];
 
     [self fillData];
     [viewController fillData];
 }
 
 -(void)setRunOnStartup:(BOOL)val {
-    CFStringRef appId = (__bridge CFStringRef)@"com.tuyenmai.OpenKeyHelper";
-    SMLoginItemSetEnabled(appId, val);
+    if (@available(macOS 13.0, *)) {
+        SMAppService *service = [SMAppService mainAppService];
+        NSError *error = nil;
+        if (val && service.status != SMAppServiceStatusEnabled) {
+            [service registerAndReturnError:&error];
+        } else if (!val && service.status == SMAppServiceStatusEnabled) {
+            [service unregisterAndReturnError:&error];
+        }
+        if (error) {
+            NSLog(@"OpenKey: could not change login item: %@", error);
+        }
+    } else {
+        CFStringRef appId = (__bridge CFStringRef)@"com.tuyenmai.OpenKeyHelper";
+        SMLoginItemSetEnabled(appId, val);
+    }
 }
 
 -(void)setGrayIcon:(BOOL)val {
@@ -417,10 +431,6 @@ extern bool convertToolDontAlertWhenCompleted;
         [mnuVietnameseLocaleCP1258 setState:NSControlStateValueOn];
     }
     vCodeTable = (int)intCode;
-    
-    //
-    NSInteger intRunOnStartup = [[NSUserDefaults standardUserDefaults] integerForKey:@"RunOnStartup"];
-    [self setRunOnStartup:intRunOnStartup ? YES : NO];
 
 }
 
