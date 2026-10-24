@@ -119,8 +119,10 @@ static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
 static bool _hasAutoHorn = false; //checkGrammar added the horn of uo by itself
+static bool _hasUndoneMark = false; //a doubled key undid a mark (sorry -> sory), the typed keys are not the word
 
 //function prototype
+void rebuildKeyStates();
 void findAndCalculateVowel(const bool& forGrammar=false);
 void insertMark(const Uint32& markMask, const bool& canModifyFlag=true);
 
@@ -451,6 +453,8 @@ void restoreLastTypingState() {
                     TypingWord[i] = _typingStatesData[i];
                 }
                 _index = (Byte)_typingStatesData.size();
+                //the keys of the restored word are not saved, so a later restore needs them rebuilt
+                rebuildKeyStates();
             }
         }
     }
@@ -458,6 +462,7 @@ void restoreLastTypingState() {
 
 void startNewSession() {
     _hasAutoHorn = false;
+    _hasUndoneMark = false;
     _index = 0;
     hBPC = 0;
     hNCC = 0;
@@ -1252,6 +1257,7 @@ void handleQuickTelex(const Uint16& data, const bool& isCaps) {
 
 //the keys that type TypingWord, for restoring it after characters were deleted
 void rebuildKeyStates() {
+    _hasUndoneMark = false;
     _stateIndex = 0;
     for (ii = 0; ii < _index && _stateIndex < MAX_BUFF; ii++) {
         Uint32 ch = TypingWord[ii];
@@ -1284,10 +1290,10 @@ void rebuildKeyStates() {
 }
 
 bool checkRestoreIfWrongSpelling(const int& handleCode) {
-    //a doubled key undoes a mark (sorry -> sory), so the typed keys can differ from an unmarked word
-    bool keysDiffer = _stateIndex != _index;
+    //a doubled key undoes a mark (sorry -> sory), so the typed keys can differ from an unmarked word;
+    //đ alone (đc, đt) is not restored
     for (ii = 0; ii < _index; ii++) {
-        if (keysDiffer || (!IS_CONSONANT(CHR(ii)) &&
+        if (_hasUndoneMark || (!IS_CONSONANT(CHR(ii)) &&
             (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK))) {
             
             hCode = handleCode;
@@ -1606,6 +1612,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         
         if (hCode == vRestore) {
             insertKey(data, _isCaps); //KeyStates keeps both keys, so restore can bring back "ss" in "class"
+            _hasUndoneMark = true;
         }
         
         updateMacroKey(data);

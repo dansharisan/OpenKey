@@ -167,6 +167,15 @@ void OpenKeyInit() {
 
 //installed after the slow startup work (tray icon retries, update check): Windows removes
 //a low level hook whose thread doesn't answer in time
+//quick convert can show a message box, which must not run inside the hook
+static void postQuickConvert() {
+	HWND trayWindow = SystemTrayHelper::getTrayWindow();
+	if (trayWindow)
+		PostMessage(trayWindow, WM_OPENKEY_QUICK_CONVERT, 0, 0);
+	else //the tray window is still being created
+		AppDelegate::getInstance()->onQuickConvert();
+}
+
 void OpenKeyInstallHooks() {
 	HINSTANCE hInstance = GetModuleHandle(NULL);
 	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
@@ -536,7 +545,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				return -1;
 			}
 			if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-				PostMessage(SystemTrayHelper::getTrayWindow(), WM_OPENKEY_QUICK_CONVERT, 0, 0); //it can show a message box, not inside the hook
+				postQuickConvert();
 				_hasJustUsedHotKey = true;
 				_keycode = 0;
 				return -1;
@@ -553,7 +562,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				_hasJustUsedHotKey = true;
 			}
 			if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-				PostMessage(SystemTrayHelper::getTrayWindow(), WM_OPENKEY_QUICK_CONVERT, 0, 0); //it can show a message box, not inside the hook
+				postQuickConvert();
 				_hasJustUsedHotKey = true;
 			}
 			//check temporarily turn off spell checking

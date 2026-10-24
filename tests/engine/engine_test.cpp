@@ -341,6 +341,12 @@ int main(int argc, char** argv) {
         { "restore: password", "password ", "password ", restoreWrongSpelling },
         { "restore: VNI doubled mark key", "a11 ", "a11 ", []() { vRestoreIfWrongSpelling = 1; vInputType = vVNI; } },
         { "restore: valid word after undo is kept", "baans ", "bấn ", restoreWrongSpelling },
+        { "restore: đ abbreviation is kept", "ddc ", "đc ", restoreWrongSpelling },
+        { "restore: DDT abbreviation is kept", "DDT ", "ĐT ", restoreWrongSpelling },
+        { "restore: word brought back by backspace is kept", "ddc nhe<<<< ", "đc ", restoreWrongSpelling },
+        { "restore: invalid word brought back by backspace is kept", "abc x<< ", "abc ", restoreWrongSpelling },
+        { "restore: invalid word brought back across two spaces is kept", "hello x <<< ", "hello ", restoreWrongSpelling },
+        { "restore: restored word brought back by backspace stays restored", "tiengs x<< ", "tiengs ", restoreWrongSpelling },
         { "restore: after backspace keeps marks of what is left", "tuows<q ", "tuwq ", restoreWrongSpelling },
 
         // Quick telex keeps the capital of the first letter
