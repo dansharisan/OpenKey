@@ -498,6 +498,15 @@ void checkCorrectVowel(vector<vector<Uint16>>& charset, int& i, int& k, const Ui
     }
 }
 
+//returns the character at elem of the code table entry for key, or data if there is none
+//(a mark can end up on a letter whose entry is short, such as d)
+static Uint32 lookupCodeTable(const Uint32& data, const Uint32& tableKey, const int& elem) {
+    map<Uint32, vector<Uint16>>::iterator entry = _codeTable[vCodeTable].find(tableKey);
+    if (entry == _codeTable[vCodeTable].end() || elem < 0 || elem >= (int)entry->second.size())
+        return data; //not found
+    return entry->second[elem] | CHAR_CODE_MASK;
+}
+
 Uint32 getCharacterCode(const Uint32& data) {
     capsElem = (data & CAPS_MASK) ? 0 : 1;
     key = data & CHAR_MASK;
@@ -537,18 +546,12 @@ Uint32 getCharacterCode(const Uint32& data) {
         } else if (data & TONEW_MASK) {
             key |= TONEW_MASK;
         }
-        if (_codeTable[vCodeTable].find(key) == _codeTable[vCodeTable].end())
-            return data; //not found
-        
-        return _codeTable[vCodeTable][key][markElem] | CHAR_CODE_MASK;
+        return lookupCodeTable(data, key, markElem);
     } else { //doesn't has mark
-        if (_codeTable[vCodeTable].find(key) == _codeTable[vCodeTable].end())
-            return data; //not found
-        
         if (data & TONE_MASK) {
-            return _codeTable[vCodeTable][key][capsElem] | CHAR_CODE_MASK;
+            return lookupCodeTable(data, key, capsElem);
         } else if (data & TONEW_MASK) {
-            return _codeTable[vCodeTable][key][capsElem + 2] | CHAR_CODE_MASK;
+            return lookupCodeTable(data, key, capsElem + 2);
         } else {
             return data; //not found
         }
@@ -993,7 +996,7 @@ void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
 }
 
 void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32& keyWillReverse) {
-    if (CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {
+    if (_index > 0 && CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {
         hCode = vWillProcess;
         hBPC = 1;
         hNCC = 1;
@@ -1238,12 +1241,12 @@ bool checkQuickConsonant() {
     if (_index <= 1) return false;
     l = 0;
     if (_index > 0) {
-        if (vQuickStartConsonant && _quickStartConsonant.find(CHR(0)) != _quickStartConsonant.end()) {
+        //each conversion adds one character, so only convert when there is room for it
+        if (vQuickStartConsonant && _index < MAX_BUFF - 1 && _quickStartConsonant.find(CHR(0)) != _quickStartConsonant.end()) {
             hCode = vRestore;
             hBPC = _index;
             hNCC = _index + 1;
-            if (_index < MAX_BUFF-1)
-                _index++;
+            _index++;
             //right shift
             for (i = _index-1; i >= 2; i--) {
                 TypingWord[i] = TypingWord[i-1];
@@ -1252,7 +1255,7 @@ bool checkQuickConsonant() {
             TypingWord[0] = _quickStartConsonant[CHR(0)][0] | (TypingWord[0] & CAPS_MASK ? CAPS_MASK : 0);
             l = 1;;
         }
-        if (vQuickEndConsonant &&
+        if (vQuickEndConsonant && _index < MAX_BUFF - 1 &&
             (_index-2 >= 0 && !IS_CONSONANT(CHR(_index-2))) &&
             _quickEndConsonant.find(CHR(_index-1)) != _quickEndConsonant.end()) {
             hCode = vRestore;
@@ -1262,8 +1265,7 @@ bool checkQuickConsonant() {
                 hBPC = 1;
                 hNCC = 2;
             }
-            if (_index < MAX_BUFF-1)
-                _index++;
+            _index++;
             TypingWord[_index-1] = _quickEndConsonant[CHR(_index-2)][1] | (TypingWord[_index-2] & CAPS_MASK ? CAPS_MASK : 0);
             TypingWord[_index-2] = _quickEndConsonant[CHR(_index-2)][0] | (TypingWord[_index-2] & CAPS_MASK ? CAPS_MASK : 0);
             
