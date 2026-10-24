@@ -9,66 +9,51 @@
 #import <Cocoa/Cocoa.h>
 #import "MyTextField.h"
 
-@interface ViewController : NSViewController<MyTextFieldDelegate>
-@property (strong) IBOutlet NSView *viewParent;
-@property (weak) IBOutlet NSButton *tabbuttonPrimary;
-@property (weak) IBOutlet NSButton *tabbuttonMacro;
-@property (weak) IBOutlet NSButton *tabbuttonSystem;
-@property (weak) IBOutlet NSButton *tabbuttonInfo;
-@property (weak) IBOutlet NSBox *tabviewPrimary;
-@property (weak) IBOutlet NSBox *tabviewMacro;
-@property (weak) IBOutlet NSBox *tabviewSystem;
-@property (weak) IBOutlet NSBox *tabviewInfo;
+//The settings window. Its views are built in code (loadView), not loaded from Main.storyboard.
+@interface ViewController : NSViewController<MyTextFieldDelegate, NSToolbarDelegate>
 
-@property (weak) IBOutlet NSPopUpButton *popupInputType;
-@property (weak) IBOutlet NSPopUpButton *popupCode;
+@property (weak) NSPopUpButton *popupInputType;
+@property (weak) NSPopUpButton *popupCode;
 
-@property (weak) IBOutlet NSBox *appOK;
-@property (weak) IBOutlet NSBox *permissionWarning;
-@property (weak) IBOutlet NSButton *retryButton;
+@property (weak) NSButton *VietButton;
+@property (weak) NSButton *EngButton;
 
-@property (weak) IBOutlet NSButton *VietButton;
-@property (weak) IBOutlet NSButton *EngButton;
+@property (weak) NSButton *UseModernOrthography;
 
-@property (weak) IBOutlet NSButton *FreeMarkButton;
-@property (weak) IBOutlet NSButton *UseModernOrthography;
+@property (weak) NSButton *CheckSpellingButton;
 
-@property (weak) IBOutlet NSButton *CheckSpellingButton;
+@property (weak) NSButton *RunOnStartupButton;
+@property (weak) NSButton *ShowUIButton;
 
-@property (weak) IBOutlet NSButton *RunOnStartupButton;
-@property (weak) IBOutlet NSButton *ShowUIButton;
+@property (weak) NSButton *UseGrayIcon;
+@property (weak) NSButton *QuickTelex;
 
-@property (weak) IBOutlet NSButton *UseGrayIcon;
-@property (weak) IBOutlet NSButton *QuickTelex;
+@property (weak) NSButton *RestoreIfInvalidWord;
+@property (weak) NSButton *FixRecommendBrowser;
+@property (weak) NSButton *AllowZWJF;
+@property (weak) NSButton *TempOffSpellChecking;
 
-@property (weak) IBOutlet NSButton *RestoreIfInvalidWord;
-@property (weak) IBOutlet NSButton *FixRecommendBrowser;
-@property (weak) IBOutlet NSButton *AllowZWJF;
-@property (weak) IBOutlet NSButton *TempOffSpellChecking;
+@property (weak) NSButton *UseMacro;
+@property (weak) NSButton *UseMacroInEnglishMode;
 
-@property (weak) IBOutlet NSButton *UseMacro;
-@property (weak) IBOutlet NSButton *UseMacroInEnglishMode;
+@property (weak) NSButton *SendKeyStepByStep;
+@property (weak) NSButton *AutoRememberSwitchKey;
+@property (weak) NSButton *UpperCaseFirstChar;
+@property (weak) NSButton *QuickStartConsonant;
+@property (weak) NSButton *QuickEndConsonant;
 
-@property (weak) IBOutlet NSButton *SendKeyStepByStep;
-@property (weak) IBOutlet NSButton *AutoRememberSwitchKey;
-@property (weak) IBOutlet NSButton *UpperCaseFirstChar;
-@property (weak) IBOutlet NSButton *QuickStartConsonant;
-@property (weak) IBOutlet NSButton *QuickEndConsonant;
+@property (weak) NSButton *RememberTableCode;
+@property (weak) NSButton *OtherLanguage;
 
-@property (weak) IBOutlet NSButton *RememberTableCode;
-@property (weak) IBOutlet NSButtonCell *OtherLanguage;
+@property (weak) NSButton *TempOffOpenKey;
+@property (weak) NSButton *AutoCapsMacro;
+@property (weak) NSButton *ShowIconOnDock;
+@property (weak) NSButton *CheckNewVersionOnStartup;
+@property (weak) NSButton *FixChromiumBrowser;
+@property (weak) NSButton *PerformLayoutCompat;
 
-@property (weak) IBOutlet NSButton *TempOffOpenKey;
-@property (weak) IBOutlet NSButton *AutoCapsMacro;
-@property (weak) IBOutlet NSButton *ShowIconOnDock;
-@property (weak) IBOutlet NSButton *CheckNewVersionOnStartup;
-@property (weak) IBOutlet NSButton *FixChromiumBrowser;
-@property (weak) IBOutlet NSButton *PerformLayoutCompat;
-
-@property (weak) IBOutlet NSButton *CheckNewVersionButton;
-@property (weak) IBOutlet NSTextField *VersionInfo;
-
-@property (weak) IBOutlet NSImageView *cursorImage;
+@property (weak) NSButton *CheckNewVersionButton;
+@property (weak) NSTextField *VersionInfo;
 
 -(void)fillData;
 @end
