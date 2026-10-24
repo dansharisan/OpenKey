@@ -1,0 +1,25 @@
+name: macOS
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Engine tests
+      run: tests/engine/run.sh
+
+    - name: Engine fuzzing
+      run: build/engine_test --fuzz 20000
+
+    - name: Build app (unsigned)
+      run: scripts/build-macos.sh Release

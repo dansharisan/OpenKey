@@ -10,6 +10,8 @@
 //
 
 #include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
 #include <string>
 #include <vector>
 #include <functional>
@@ -359,8 +361,9 @@ int main(int argc, char** argv) {
     // Macro files saved on Windows (CRLF line endings) import without a trailing \r.
     {
         resetSettings();
-        const char* path = "/tmp/openkey_engine_test_macros.txt";
-        FILE* f = fopen(path, "wb");
+        char path[] = "/tmp/openkey_engine_test_XXXXXX";
+        int fd = mkstemp(path);
+        FILE* f = fdopen(fd, "wb");
         fputs(";OpenKey macro\r\nko:không\r\n", f);
         fclose(f);
         readFromFile(path, false);
