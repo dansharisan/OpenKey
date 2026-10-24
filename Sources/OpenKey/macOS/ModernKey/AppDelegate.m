@@ -20,6 +20,7 @@
 AppDelegate* appDelegate;
 extern ViewController* viewController;
 extern void OnTableCodeChange(void);
+extern void OnSpellCheckingChanged(void);
 extern void OnInputMethodChanged(void);
 extern void RequestNewSession(void);
 extern void OnActiveAppChanged(void);
@@ -111,8 +112,31 @@ extern bool convertToolDontAlertWhenCompleted;
     [NSApp terminate:0];
 }
 
+//this fork has its own bundle id: bring over settings and macros of the official app once
+-(void)importSettingsFromOfficialApp {
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+    NSDictionary *official = [prefs persistentDomainForName:OFFICIAL_OPENKEY_BUNDLE];
+    if (official.count == 0)
+        return;
+    for (NSString *key in official) {
+        [prefs setObject:official[key] forKey:key];
+    }
+    //the update check looks at the official releases, which would replace this build
+    [prefs setInteger:1 forKey:@"DontCheckUpdate"];
+}
+
+//registering a build that isn't installed (e.g. in DerivedData) would start that copy at login
+-(BOOL)isInstalledInApplications {
+    return [[[NSBundle mainBundle] bundlePath] hasPrefix:@"/Applications/"];
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     appDelegate = self;
+    
+    BOOL isFirstLaunch = ![[NSUserDefaults standardUserDefaults] boolForKey:@"NonFirstTime"];
+    if (isFirstLaunch) {
+        [self importSettingsFromOfficialApp];
+    }
     
     [self registerSupportedNotification];
     
@@ -176,6 +200,9 @@ extern bool convertToolDontAlertWhenCompleted;
     //load default config if is first launch
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"NonFirstTime"] == 0) {
         [self loadDefaultConfig];
+    } else if (isFirstLaunch && [[NSUserDefaults standardUserDefaults] integerForKey:@"RunOnStartup"] && [self isInstalledInApplications]) {
+        //settings imported from the official app
+        [self setRunOnStartup:YES];
     }
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"NonFirstTime"];
     
@@ -184,9 +211,8 @@ extern bool convertToolDontAlertWhenCompleted;
     if (!dontCheckUpdate)
         [OpenKeyManager checkNewVersion:nil callbackFunc:nil];
     
-    //correct run on startup
-    NSInteger val = [[NSUserDefaults standardUserDefaults] integerForKey:@"RunOnStartup"];
-    [appDelegate setRunOnStartup:val];
+    //run on startup is registered only when the user asks (or on first launch), so a choice made in
+    //System Settings > Login Items is not undone at every launch
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
@@ -314,29 +340,37 @@ extern bool convertToolDontAlertWhenCompleted;
 
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"GrayIcon"];
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"RunOnStartup"];
-    [self setRunOnStartup:YES];
+    if ([self isInstalledInApplications])
+        [self setRunOnStartup:YES];
+    //this fork doesn't follow the official releases
+    [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"DontCheckUpdate"];
+
+    //apply to what is already running: macro codes, spell check state, Dock icon
+    OnTableCodeChange();
+    OnSpellCheckingChanged();
+    [self showIconOnDock:vShowIconOnDock];
 
     [self fillData];
     [viewController fillData];
 }
 
 -(void)setRunOnStartup:(BOOL)val {
-    if (@available(macOS 13.0, *)) {
-        SMAppService *service = [SMAppService mainAppService];
-        NSError *error = nil;
-        if (val && service.status != SMAppServiceStatusEnabled) {
-            [service registerAndReturnError:&error];
-        } else if (!val && service.status != SMAppServiceStatusNotRegistered && service.status != SMAppServiceStatusNotFound) {
-            //also when it is still waiting for approval in System Settings
-            [service unregisterAndReturnError:&error];
-        }
-        if (error) {
-            NSLog(@"OpenKey: could not change login item: %@", error);
-        }
-    } else {
-        CFStringRef appId = (__bridge CFStringRef)@"com.tuyenmai.OpenKeyHelper";
-        SMLoginItemSetEnabled(appId, val);
+    SMAppService *service = [SMAppService mainAppService];
+    NSError *error = nil;
+    if (val && service.status != SMAppServiceStatusEnabled) {
+        [service registerAndReturnError:&error];
+    } else if (!val && service.status != SMAppServiceStatusNotRegistered && service.status != SMAppServiceStatusNotFound) {
+        //also when it is still waiting for approval in System Settings
+        [service unregisterAndReturnError:&error];
     }
+    if (error) {
+        NSLog(@"OpenKey: could not change login item: %@", error);
+    }
+}
+
+//the real state, which the user can also change in System Settings > Login Items
+-(BOOL)isRunOnStartupEnabled {
+    return [SMAppService mainAppService].status == SMAppServiceStatusEnabled;
 }
 
 -(void)setGrayIcon:(BOOL)val {
@@ -345,6 +379,9 @@ extern bool convertToolDontAlertWhenCompleted;
 
 -(void)showIconOnDock:(BOOL)val {
     [NSApp setActivationPolicy: val ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory];
+    if (val) {
+        [NSApp activateIgnoringOtherApps:YES]; //otherwise the menu bar may not appear until the app is activated again
+    }
 }
 
 #pragma mark -StatusBar menu data
@@ -546,7 +583,13 @@ extern bool convertToolDontAlertWhenCompleted;
 
 #pragma mark Reset OpenKey after mac computer awake
 -(void)receiveWakeNote: (NSNotification*)note {
-    [OpenKeyManager initEventTap];
+    if (![OpenKeyManager initEventTap]) {
+        if (!MJAccessibilityIsEnabled()) {
+            [self askPermission];
+        } else {
+            [self onControlPanelSelected];
+        }
+    }
 }
 
 -(void)receiveSleepNote: (NSNotification*)note {
@@ -558,7 +601,7 @@ extern bool convertToolDontAlertWhenCompleted;
 }
 
 -(void)activeAppChanged: (NSNotification*)note {
-    if (vUseSmartSwitchKey && [OpenKeyManager isInited]) {
+    if ((vUseSmartSwitchKey || vRememberCode) && [OpenKeyManager isInited]) {
         OnActiveAppChanged();
     }
 }

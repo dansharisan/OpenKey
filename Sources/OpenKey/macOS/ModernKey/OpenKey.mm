@@ -50,14 +50,15 @@ extern int vPerformLayoutCompat;
 
 extern "C" {
     //app which must sent special empty character
-    NSArray* _niceSpaceApp = @[@"com.sublimetext.3",
+    NSArray* _niceSpaceApp = @[@"com.sublimetext.4",
+                               @"com.sublimetext.3",
                                @"com.sublimetext.2",
                              ];
     
     //app which error with unicode Compound
     NSArray* _unicodeCompoundApp = @[@"com.apple.",
                                      @"com.google.Chrome", @"com.brave.Browser",
-                                     @"com.microsoft.edgemac.Dev", @"com.microsoft.edgemac.Beta", @"com.microsoft.Edge.Dev", @"com.microsoft.Edge"];
+                                     @"com.microsoft.edgemac", @"com.microsoft.edgemac.Dev", @"com.microsoft.edgemac.Beta", @"com.microsoft.Edge.Dev", @"com.microsoft.Edge"];
     NSArray* _recommendWorkaroundDisabledApp = @[@"com.apple.Spotlight"];
     
     CGEventSourceRef myEventSource = NULL;
@@ -218,9 +219,9 @@ extern "C" {
     void OnActiveAppChanged() { //use for smart switch key; improved on Sep 28th, 2019
         queryFrontMostApp();
         _languageTemp = getAppInputMethodStatus(string(_frontMostApp.UTF8String), vLanguage | (vCodeTable << 1));
-        if ((_languageTemp & 0x01) != vLanguage) { //for input method
+        if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) { //for input method
             if (_languageTemp != -1) {
-                vLanguage = _languageTemp;
+                vLanguage = _languageTemp & 0x01; //the saved value also holds the code table
                 [appDelegate onImputMethodChanged:NO];
                 startNewSession();
             } else {
@@ -294,6 +295,12 @@ extern "C" {
             
             CGEventSetFlags(_newEventDown, _privateFlag);
             CGEventSetFlags(_newEventUp, _privateFlag);
+            if (vPerformLayoutCompat && keyCodeToCharacter(data) != 0) {
+                //the key code is QWERTY here; the app would map it through the active layout (e.g. Dvorak) again
+                UniChar ch = keyCodeToCharacter(data);
+                CGEventKeyboardSetUnicodeString(_newEventDown, 1, &ch);
+                CGEventKeyboardSetUnicodeString(_newEventUp, 1, &ch);
+            }
             CGEventTapPostEvent(_proxy, _newEventDown);
             CGEventTapPostEvent(_proxy, _newEventUp);
         } else {

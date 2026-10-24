@@ -9,7 +9,10 @@
 #import <Cocoa/Cocoa.h>
 #import "ViewController.h"
 
-#define OPENKEY_BUNDLE @"com.tuyenmai.openkey"
+#define OPENKEY_BUNDLE [[NSBundle mainBundle] bundleIdentifier]
+
+//bundle id of the official OpenKey app, whose settings are imported on first launch
+#define OFFICIAL_OPENKEY_BUNDLE @"com.tuyenmai.openkey"
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 
@@ -22,6 +25,7 @@
 -(void)onCodeTableChanged:(int)index;
 
 -(void)setRunOnStartup:(BOOL)val;
+-(BOOL)isRunOnStartupEnabled;
 -(void)loadDefaultConfig;
 
 -(void)setGrayIcon:(BOOL)val;

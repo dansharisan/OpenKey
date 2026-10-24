@@ -38,6 +38,7 @@ extern int vShowIconOnDock;
 extern int vAutoCapsMacro;
 extern int vFixChromiumBrowser;
 extern int vPerformLayoutCompat;
+extern int ConvertKeyStringToKeyCode(NSString *keyString, CGKeyCode fallback);
 
 @implementation ViewController {
     __weak IBOutlet NSButton *CustomSwitchCommand;
@@ -267,6 +268,10 @@ extern int vPerformLayoutCompat;
 }
 
 -(void)onMyTextFieldKeyChange:(unsigned short)keyCode character:(unsigned short)character {
+    if (vPerformLayoutCompat && character != 0) {
+        //the event tap compares the QWERTY key code of the typed character
+        keyCode = ConvertKeyStringToKeyCode([NSString stringWithFormat:@"%C", (unichar)character], keyCode);
+    }
     vSwitchKeyStatus &= 0xFFFFFF00;
     vSwitchKeyStatus |= keyCode;
     vSwitchKeyStatus &= 0x00FFFFFF;
@@ -409,8 +414,7 @@ extern int vPerformLayoutCompat;
     NSInteger spelling = [[NSUserDefaults standardUserDefaults] integerForKey:@"Spelling"];
     self.CheckSpellingButton.state = spelling ? NSControlStateValueOn : NSControlStateValueOff;
     
-    NSInteger runOnStartup = [[NSUserDefaults standardUserDefaults] integerForKey:@"RunOnStartup"];
-    self.RunOnStartupButton.state = runOnStartup ? NSControlStateValueOn : NSControlStateValueOff;
+    self.RunOnStartupButton.state = [appDelegate isRunOnStartupEnabled] ? NSControlStateValueOn : NSControlStateValueOff;
     
     NSInteger useGrayIcon = [[NSUserDefaults standardUserDefaults] integerForKey:@"GrayIcon"];
     self.UseGrayIcon.state = useGrayIcon ? NSControlStateValueOn : NSControlStateValueOff;

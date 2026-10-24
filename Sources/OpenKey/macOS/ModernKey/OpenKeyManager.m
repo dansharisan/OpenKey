@@ -156,41 +156,27 @@ static CFRunLoopSourceRef runLoopSource;
     //load new version config
     NSURLSession *aSession = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
     [[aSession dataTaskWithURL:[NSURL URLWithString:@"https://raw.githubusercontent.com/tuyenvm/OpenKey/master/version.json"] completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        if (((NSHTTPURLResponse *)response).statusCode == 200) {
-            if (data) {
-                if(NSClassFromString(@"NSJSONSerialization")) {
-                    NSError *error = nil;
-                    id object = [NSJSONSerialization
-                                 JSONObjectWithData:data
-                                 options:0
-                                 error:&error];
-                    
-                    if(error) {  }
-                    if([object isKindOfClass:[NSDictionary class]]) {
-                        NSDictionary *results = object;
-                        NSDictionary *ver = [results valueForKey:@"latestVersion"];
-                        NSString* versionCodeString = [ver valueForKey:@"versionCode"];
-                        int versionCode = (int)[versionCodeString integerValue];
-                        int currentVersionCode = (int)[((NSString*)[[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleVersion"]) integerValue];
-                        
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            if (callback != nil) {
-                                callback();
-                            }
-                            if (versionCode > currentVersionCode || callback != nil) {
-                                [self showUpdateMessage:parent needUpdating:versionCode > currentVersionCode newVersion:[ver valueForKey:@"versionName"]];
-                            }
-                        });
-                    }
-                    else {
-                        //oh my god
-                    }
-                }
-                else {
-                    //can not parse json
-                }
+        NSDictionary *ver = nil;
+        if (((NSHTTPURLResponse *)response).statusCode == 200 && data) {
+            id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([object isKindOfClass:[NSDictionary class]] && [object[@"latestVersion"] isKindOfClass:[NSDictionary class]]) {
+                ver = object[@"latestVersion"];
             }
         }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            //always called, so the "checking..." button is restored when offline too
+            if (callback != nil) {
+                callback();
+            }
+            if (ver == nil) {
+                return;
+            }
+            int versionCode = (int)[ver[@"versionCode"] integerValue];
+            int currentVersionCode = (int)[((NSString*)[[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleVersion"]) integerValue];
+            if (versionCode > currentVersionCode || callback != nil) {
+                [self showUpdateMessage:parent needUpdating:versionCode > currentVersionCode newVersion:ver[@"versionName"]];
+            }
+        });
     }] resume];
 }
 

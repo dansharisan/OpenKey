@@ -37,7 +37,9 @@
 }
 
 -(void) textDidEndEditing:(NSNotification *)notification {
-    [NSEvent removeMonitor:eventMonitor];
+    if (eventMonitor) {
+        [NSEvent removeMonitor:eventMonitor];
+    }
     eventMonitor = nil;
 }
 
