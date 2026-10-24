@@ -83,6 +83,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	case WM_USER+2019:
 		AppDelegate::getInstance()->onControlPanel();
 		break;
+	case WM_OPENKEY_QUICK_CONVERT:
+		AppDelegate::getInstance()->onQuickConvert();
+		break;
 	case WM_TRAYMESSAGE: {
 		if (lParam == WM_LBUTTONDBLCLK) {
 			AppDelegate::getInstance()->onControlPanel();
@@ -317,6 +320,7 @@ static HINSTANCE ins;
 static int recreateCount = 0;
 
 void SystemTrayHelper::_createSystemTrayIcon(const HINSTANCE& hIns) {
+	ins = hIns;
 	HWND hWnd = createFakeWindow(ins);
 	
 	if (hWnd == NULL) { //Use timer to create
@@ -352,13 +356,17 @@ void SystemTrayHelper::_createSystemTrayIcon(const HINSTANCE& hIns) {
 }
 
 
-void CALLBACK SystemTrayHelper::WaitToCreateFakeWindow(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime) {
+void CALLBACK SystemTrayHelper::WaitToCreateFakeWindow(HWND hwnd, UINT uMsg, UINT_PTR timerId, DWORD dwTime) {
 	_createSystemTrayIcon(ins);
 	KillTimer(0, timerId);
 }
 
 void SystemTrayHelper::createSystemTrayIcon(const HINSTANCE& hIns) {
 	_createSystemTrayIcon(hIns);
+}
+
+HWND SystemTrayHelper::getTrayWindow() {
+	return nid.hWnd;
 }
 
 void SystemTrayHelper::removeSystemTray() {

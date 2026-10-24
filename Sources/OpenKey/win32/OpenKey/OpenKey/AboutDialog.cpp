@@ -88,7 +88,7 @@ void AboutDialog::onUpdateButton() {
 	string newVersion;
 	if (OpenKeyManager::checkUpdate(newVersion)) {
 		WCHAR msg[256];
-		wsprintf(msg, 
+		_snwprintf_s(msg, _countof(msg), _TRUNCATE,
 			TEXT("OpenKey Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
 			utf8ToWideString(newVersion).c_str());
 
@@ -99,13 +99,7 @@ void AboutDialog::onUpdateButton() {
 			MB_ICONEXCLAMATION | MB_YESNO
 		);
 		if (msgboxID == IDYES) {
-			//Call OpenKeyUpdate
-			WCHAR path[MAX_PATH];
-			GetCurrentDirectory(MAX_PATH, path);
-			wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
-			ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
-
-			AppDelegate::getInstance()->onOpenKeyExit();
+			AppDelegate::getInstance()->launchUpdater();
 		}
 		
 	} else {

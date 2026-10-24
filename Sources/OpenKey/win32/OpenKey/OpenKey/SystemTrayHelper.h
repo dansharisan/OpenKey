@@ -14,9 +14,12 @@ redistribute your new version, it MUST be open source.
 #pragma once
 #include "stdafx.h"
 
+//posted from the keyboard hook so quick convert runs from the message loop
+#define WM_OPENKEY_QUICK_CONVERT (WM_USER + 3)
+
 class SystemTrayHelper {
 private:
-	static void CALLBACK WaitToCreateFakeWindow(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime);
+	static void CALLBACK WaitToCreateFakeWindow(HWND hwnd, UINT uMsg, UINT_PTR timerId, DWORD dwTime);
 	static HWND createFakeWindow(const HINSTANCE& hIns);
 	static void createPopupMenu();
 
@@ -25,5 +28,6 @@ public:
 	static void createSystemTrayIcon(const HINSTANCE& hIns);
 	static void updateData();
 	static void removeSystemTray();
+	static HWND getTrayWindow();
 };
 

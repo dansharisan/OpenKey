@@ -13,6 +13,8 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
 
+extern void OpenKeyInstallHooks();
+
 static AppDelegate* _instance;
 
 //see document in Engine.h
@@ -63,7 +65,7 @@ void AppDelegate::checkUpdate() {
 	string newVersion;
 	if (OpenKeyManager::checkUpdate(newVersion)) {
 		WCHAR msg[256];
-		wsprintf(msg,
+		_snwprintf_s(msg, _countof(msg), _TRUNCATE,
 			TEXT("OpenKey Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
 			utf8ToWideString(newVersion).c_str());
 
@@ -74,15 +76,20 @@ void AppDelegate::checkUpdate() {
 			MB_ICONEXCLAMATION | MB_YESNO
 		);
 		if (msgboxID == IDYES) {
-			//Call OpenKeyUpdate
-			WCHAR path[MAX_PATH];
-			GetCurrentDirectory(MAX_PATH, path);
-			wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
-			ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
-			AppDelegate::getInstance()->onOpenKeyExit();
+			launchUpdater();
 		}
 
 	}
+}
+
+void AppDelegate::launchUpdater() {
+	//OpenKeyUpdate.exe sits next to OpenKey, not in the current directory (System32 when started at logon)
+	wstring path = OpenKeyHelper::getFullPath();
+	path = path.substr(0, path.find_last_of(L'\\') + 1) + L"OpenKeyUpdate.exe";
+	if ((INT_PTR)ShellExecute(0, NULL, path.c_str(), 0, 0, SW_SHOWNORMAL) > 32)
+		onOpenKeyExit();
+	else
+		MessageBox(0, _T("Không tìm thấy OpenKeyUpdate.exe"), _T("OpenKey Update"), MB_OK);
 }
 
 AppDelegate::AppDelegate() {
@@ -120,6 +127,8 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	//check update
 	if (vCheckNewVersion)
 		checkUpdate();
+
+	OpenKeyInstallHooks();
 
 	MSG msg;
 	// Main message loop:

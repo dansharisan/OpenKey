@@ -26,6 +26,7 @@ private:
 private:
 	bool isDialogMsg(MSG &msg) const;
 	void checkUpdate();
+	void launchUpdater();
 public:
 	AppDelegate();
 	static AppDelegate* getInstance();

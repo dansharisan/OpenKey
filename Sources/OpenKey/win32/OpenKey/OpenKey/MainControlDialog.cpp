@@ -298,7 +298,7 @@ INT_PTR MainControlDialog::tabPageEventProc(HWND hDlg, UINT uMsg, WPARAM wParam,
     }
     else if ((uMsg == WM_CTLCOLORSTATIC || uMsg == WM_CTLCOLORBTN) && IsThemeActive()) {
         SetBkMode((HDC)wParam, TRANSPARENT);
-        return (LRESULT)GetStockObject(COLOR_WINDOW + 1);
+        return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
     }
     else if (uMsg == WM_PAINT && IsThemeActive()) {
         PAINTSTRUCT ps;
@@ -605,7 +605,7 @@ void MainControlDialog::onUpdateButton() {
     string newVersion;
     if (OpenKeyManager::checkUpdate(newVersion)) {
         WCHAR msg[256];
-        wsprintf(msg,
+        _snwprintf_s(msg, _countof(msg), _TRUNCATE,
             TEXT("OpenKey Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
             utf8ToWideString(newVersion).c_str());
 
@@ -616,13 +616,7 @@ void MainControlDialog::onUpdateButton() {
             MB_ICONEXCLAMATION | MB_YESNO
         );
         if (msgboxID == IDYES) {
-            //Call OpenKeyUpdate
-            WCHAR path[MAX_PATH];
-            GetCurrentDirectory(MAX_PATH, path);
-            wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
-            ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
-
-            AppDelegate::getInstance()->onOpenKeyExit();
+            AppDelegate::getInstance()->launchUpdater();
         }
 
     }

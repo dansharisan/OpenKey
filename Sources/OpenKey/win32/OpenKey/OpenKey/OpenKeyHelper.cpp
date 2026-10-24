@@ -94,10 +94,16 @@ BYTE * OpenKeyHelper::getRegBinary(LPCTSTR key, DWORD& outSize) {
 void OpenKeyHelper::registerRunOnStartup(const int& val) {
 	if (val) {
 		if (vRunAsAdmin) {
-			string path = wideStringToUtf8(getFullPath());
-			char buff[MAX_PATH];
-			sprintf_s(buff, "schtasks /create /sc onlogon /tn OpenKey /rl highest /tr \"%s\" /f", path.c_str());
-			WinExec(buff, SW_HIDE);
+			//wide: the path may contain Vietnamese letters; \" keeps quotes around paths with spaces
+			WCHAR cmd[MAX_PATH + 128];
+			_snwprintf_s(cmd, _countof(cmd), _TRUNCATE,
+				L"schtasks.exe /create /sc onlogon /tn OpenKey /rl highest /tr \"\\\"%s\\\"\" /f", getFullPath().c_str());
+			STARTUPINFO si = { sizeof(si) };
+			PROCESS_INFORMATION pi = {};
+			if (CreateProcess(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+				CloseHandle(pi.hThread);
+				CloseHandle(pi.hProcess);
+			}
 		} else {
 			RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
 			wstring path = getFullPath();

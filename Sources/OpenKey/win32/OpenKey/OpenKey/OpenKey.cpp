@@ -85,7 +85,9 @@ void OpenKeyInit() {
 	APP_GET_DATA(vCheckSpelling, 1);
 	APP_GET_DATA(vUseModernOrthography, 0);
 	APP_GET_DATA(vQuickTelex, 0);
-	APP_GET_DATA(vSwitchKeyStatus, 0x7A000206);
+	APP_GET_DATA(vSwitchKeyStatus, 0x5A00025A); //Alt + Z with Windows virtual key codes
+	if (GET_SWITCH_KEY(vSwitchKeyStatus) == 0x06) //saved by old builds (macOS key code of Z), never a keyboard key on Windows
+		vSwitchKeyStatus = 0x5A00025A;
 	APP_GET_DATA(vRestoreIfWrongSpelling, 1);
 	APP_GET_DATA(vFixRecommendBrowser, 1);
 	APP_GET_DATA(vUseMacro, 1);
@@ -161,8 +163,11 @@ void OpenKeyInit() {
 	DWORD smartSwitchKeySize;
 	BYTE* data = OpenKeyHelper::getRegBinary(_T("smartSwitchKey"), smartSwitchKeySize);
 	initSmartSwitchKey((Byte*)data, (int)smartSwitchKeySize);
+}
 
-	//init hook
+//installed after the slow startup work (tray icon retries, update check): Windows removes
+//a low level hook whose thread doesn't answer in time
+void OpenKeyInstallHooks() {
 	HINSTANCE hInstance = GetModuleHandle(NULL);
 	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
 	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
@@ -301,8 +306,10 @@ static void SendEmptyCharacter() {
 static void SendNewCharString(const bool& dataFromMacro = false) {
 	_j = 0;
 	_newCharSize = dataFromMacro ? (Uint16)pData->macroData.size() : pData->newCharCount;
-	if (_newCharString.size() < _newCharSize) {
-		_newCharString.resize(_newCharSize);
+	if (!dataFromMacro && _newCharSize > MAX_BUFF) _newCharSize = MAX_BUFF; //charData holds MAX_BUFF
+	//up to 2 units per character (VNI Windows, TCVN3, CP1258, Unicode compound), the restore key and NUL
+	if (_newCharString.size() < (size_t)_newCharSize * 2 + 2) {
+		_newCharString.resize((size_t)_newCharSize * 2 + 2);
 	}
 	_willSendControlKey = false;
 	
@@ -368,7 +375,8 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 		startNewSession();
 	}
 
-	OpenKeyHelper::setClipboardText((LPCTSTR)_newCharString.data(), _newCharSize + 1, CF_UNICODETEXT);
+	_newCharString[_j] = 0; //the clipboard text must end with NUL
+	OpenKeyHelper::setClipboardText((LPCTSTR)_newCharString.data(), _j + 1, CF_UNICODETEXT);
 
 	//Send shift + insert
 	SendCombineKey(KEY_LEFT_SHIFT, VK_INSERT, 0, KEYEVENTF_EXTENDEDKEY);
@@ -499,8 +507,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	//ignore if IME pad is open when typing Japanese/Chinese...
 	HWND hWnd = GetForegroundWindow();
 	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
-	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
-	if (isImeON) {
+	DWORD_PTR isImeON = 0;
+	//never wait long for another process here: Windows removes a slow hook
+	if (hIME && SendMessageTimeout(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 50, &isImeON) && isImeON) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
@@ -527,7 +536,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				return -1;
 			}
 			if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-				AppDelegate::getInstance()->onQuickConvert();
+				PostMessage(SystemTrayHelper::getTrayWindow(), WM_OPENKEY_QUICK_CONVERT, 0, 0); //it can show a message box, not inside the hook
 				_hasJustUsedHotKey = true;
 				_keycode = 0;
 				return -1;
@@ -544,7 +553,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				_hasJustUsedHotKey = true;
 			}
 			if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-				AppDelegate::getInstance()->onQuickConvert();
+				PostMessage(SystemTrayHelper::getTrayWindow(), WM_OPENKEY_QUICK_CONVERT, 0, 0); //it can show a message box, not inside the hook
 				_hasJustUsedHotKey = true;
 			}
 			//check temporarily turn off spell checking
@@ -571,7 +580,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 
 			if (pData->code == vReplaceMaro) { //handle macro in english mode
 				handleMacro();
-				return NULL;
+				return -1; //consume the key, handleMacro already sent it
 			}
 		}
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
@@ -681,7 +690,7 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 		vTempOffEngine(false);
 		if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) {
 			if (_languageTemp != -1) {
-				vLanguage = _languageTemp;
+				vLanguage = _languageTemp & 0x01; //the saved value also holds the code table
 				AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 			} else {
 				saveSmartSwitchKeyData();

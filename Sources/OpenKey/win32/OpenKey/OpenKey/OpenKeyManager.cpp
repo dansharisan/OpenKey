@@ -70,7 +70,7 @@ bool OpenKeyManager::checkUpdate(string& newVersion) {
 
 	posEnd = data.find('\"', posBegin);
 
-	if (posBegin == string::npos || posEnd == string::npos) {
+	if (posBegin == string::npos || posEnd == string::npos || posEnd - posBegin > 32) {
 		return false;
 	}
 

@@ -254,7 +254,11 @@ void onTableCodeChange() {
 
 void saveToFile(const string& path) {
     ofstream myfile;
+#ifdef _WIN32
+    myfile.open(utf8ToWideString(path).c_str()); //the narrow path would use the ANSI code page
+#else
     myfile.open(path.c_str());
+#endif
     myfile << ";Compatible OpenKey Macro Data file for UniKey*** version=1 ***\n";
     for (std::map<vector<Uint32>, MacroData>::iterator it = macroMap.begin(); it != macroMap.end(); ++it) {
         myfile <<it->second.macroText << ":" << it->second.macroContent<<"\n";
@@ -263,7 +267,11 @@ void saveToFile(const string& path) {
 }
 
 void readFromFile(const string& path, const bool& append) {
+#ifdef _WIN32
+    ifstream myfile(utf8ToWideString(path).c_str()); //the narrow path would use the ANSI code page
+#else
     ifstream myfile(path.c_str());
+#endif
     string line;
     int k = 0;
     size_t pos = 0;
