@@ -51,9 +51,12 @@ Bộ gõ tiếng Việt mới cho macOS, sử dụng kỹ thuật `Backspace`. L
 
 ### Lưu ý, khi sử dụng OpenKey, bạn nên tắt hẳn bộ gõ khác vì 2 chương trình bộ gõ sẽ xung đột nhau, dẫn đến thao tác không chính xác.
 
-![Giao diện](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-main-control.png "Main UI")
-![Giao diện](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-main-control-2.png "Main UI")
-![Giao diện](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-main-control-3.png "Main UI")
+<img src="docs/images/settings-typing.png" width="640" alt="Cài đặt - Bộ gõ: chế độ gõ, kiểu gõ, bảng mã, phím chuyển, dấu và chính tả">
+<img src="docs/images/settings-macro.png" width="640" alt="Cài đặt - Gõ tắt: gõ tắt và gõ nhanh">
+<img src="docs/images/settings-apps.png" width="640" alt="Cài đặt - Ứng dụng: nhớ chế độ và bảng mã theo ứng dụng, tương thích">
+<img src="docs/images/settings-system.png" width="640" alt="Cài đặt - Hệ thống: khởi động, giao diện, khôi phục mặc định">
+<img src="docs/images/settings-about.png" width="640" alt="Cài đặt - Thông tin: phiên bản và liên kết">
+
 ![Menu](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-small-control.png "Menu bar")
 ![Gõ tắt](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-macro.png "Macro")
 ![Chuyển mã](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-convert-tool.png "ConvertTool")
