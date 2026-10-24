@@ -118,6 +118,7 @@ static vector<Uint32> _specialChar;
 static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
+static vector<Uint32> _tempOffKeys; //keys typed while the engine was temporarily off
 static bool _hasAutoHorn = false; //checkGrammar added the horn of uo by itself
 static bool _hasUndoneMark = false; //a doubled key undid a mark (sorry -> sory), the typed keys are not the word
 
@@ -1322,6 +1323,24 @@ void vSetCheckSpelling() {
 
 void vTempOffEngine(const bool& off) {
     _willTempOffEngine = off;
+    _tempOffKeys.clear();
+}
+
+void vToggleTempOffEngine() {
+    if (!_willTempOffEngine) {
+        vTempOffEngine(true);
+        return;
+    }
+    //back on in the middle of a word: give the engine the letters typed while it was off,
+    //so the rest of the word still gets its marks (vie, tap, ej -> việ)
+    _willTempOffEngine = false;
+    for (Uint32 key : _tempOffKeys) {
+        insertState(key & CHAR_MASK, key & CAPS_MASK);
+        insertKey(key & CHAR_MASK, key & CAPS_MASK);
+        if (vUseMacro)
+            hMacroKey.push_back(key);
+    }
+    _tempOffKeys.clear();
 }
 
 bool checkQuickConsonant() {
@@ -1516,6 +1535,11 @@ void vKeyHandleEvent(const vKeyEvent& event,
     } else if (data == KEY_DELETE) {
         hCode = vDoNothing;
         hExt = 2; //delete
+        if (_willTempOffEngine && _tempOffKeys.size() > 0) {
+            //the deleted letter was typed while the engine was off, it isn't in TypingWord
+            _tempOffKeys.pop_back();
+            return;
+        }
         if (_specialChar.size() > 0) {
             _specialChar.pop_back();
             if (_specialChar.size() == 0) {
@@ -1567,6 +1591,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (_willTempOffEngine) {
             hCode = vDoNothing;
             hExt = 3;
+            _tempOffKeys.push_back(data | (_isCaps ? CAPS_MASK : 0));
             return;
         }
         if (_spaceCount > 0) {

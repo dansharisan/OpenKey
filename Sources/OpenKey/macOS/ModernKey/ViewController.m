@@ -245,7 +245,7 @@ static const CGFloat kPaneMargin = 24;
             self.UpperCaseFirstChar]],
         [self section:@"Gõ từ tiếng Anh" rows:@[
             self.TempOffOpenKey,
-            [self indented:@[[self helpText:@"Chạm ⌘ (nhấn rồi nhả, không kèm phím khác) rồi gõ một từ: từ đó không bị bỏ dấu. Gõ dấu cách là tiếng Việt trở lại."]]]]],
+            [self indented:@[[self helpText:@"Chạm ⌘ (nhấn rồi nhả, không kèm phím khác) rồi gõ một từ: từ đó không bị bỏ dấu. Gõ dấu cách là tiếng Việt trở lại. Lỡ chạm thì chạm ⌘ lần nữa để huỷ."]]]]],
     ]];
 }
 

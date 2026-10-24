@@ -124,7 +124,7 @@ static std::string type(const std::string& keys) {
             continue;
         }
         if (c == TEMP_OFF) {
-            vTempOffEngine(true);
+            vToggleTempOffEngine();
             continue;
         }
         KeyStroke k;
@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
         // Type random key sequences under every input method and setting combination.
         // Run under the sanitizers to catch out-of-bounds access; output is not checked.
         int rounds = argc > 2 ? atoi(argv[2]) : 20000;
-        const std::string alphabet = "aaeeiioouuywwddssffrrjjxxzzbcghklmnpqtv1234567890 .,;'/-[]<<<AEWD";
+        const std::string alphabet = "aaeeiioouuywwddssffrrjjxxzzbcghklmnpqtv1234567890 .,;'/-[]<<<AEWD^@";
         srand(argc > 3 ? atoi(argv[3]) : 12345);
         for (int r = 0; r < rounds; r++) {
             resetSettings();
@@ -309,6 +309,10 @@ int main(int argc, char** argv) {
         { "temp off: windows", "^windows", "windows", telex },
         { "temp off: next word is Vietnamese again", "^windows vieejt", "windows việt", telex },
         { "temp off: in the middle of a sentence", "tieesng ^windows", "tiếng windows", telex },
+        { "temp off: a second Cmd tap cancels it", "^^vieejt", "việt", telex },
+        { "temp off: cancelled in the middle of a word", "^vie^ejt", "việt", telex },
+        { "temp off: backspace while off", "^ab<c", "ac", telex },
+        { "temp off: backspace while off keeps the earlier letters", "vie^x<^ej", "việ", telex },
 
         // A mouse click starts a new word, even after an invalid word
         { "mouse click: new word after invalid word", "network@tieengs", "networktiếng", restoreWrongSpelling },

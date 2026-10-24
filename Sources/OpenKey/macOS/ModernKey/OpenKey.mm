@@ -682,7 +682,7 @@ extern "C" {
                     vTempOffSpellChecking();
                 }
                 if (vTempOffOpenKey && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskCommand) {
-                    vTempOffEngine();
+                    vToggleTempOffEngine(); //a second tap cancels it
                 }
                 _lastFlag = 0;
                 _hasJustUsedHotKey = false;

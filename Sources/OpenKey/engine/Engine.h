@@ -237,6 +237,12 @@ void vSetCheckSpelling();
 void vTempOffEngine(const bool& off=true);
 
 /**
+ * the temporarily off hot key was tapped: turn the engine off for the next word,
+ * or back on when it is already off
+ */
+void vToggleTempOffEngine();
+
+/**
  * some utils function
  */
 wstring utf8ToWideString(const string& str);

@@ -570,7 +570,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				vTempOffSpellChecking();
 			}
 			if (vTempOffOpenKey && !_hasJustUsedHotKey && _lastFlag & MASK_ALT) {
-				vTempOffEngine();
+				vToggleTempOffEngine(); //a second tap cancels it
 			}
 			_lastFlag = _flag;
 			_hasJustUsedHotKey = false;
