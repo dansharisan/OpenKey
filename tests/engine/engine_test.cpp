@@ -333,9 +333,89 @@ int main(int argc, char** argv) {
         // Capital TH / Q followed by uo
         { "caps: THUOWR", "THUOWR", "THUỞ", telex },
         { "caps: QUOW", "QUOW", "QUƠ", telex },
+
+        // Restore English words typed with a doubled mark key (the second key undoes the mark)
+        { "restore: sorry", "sorry ", "sorry ", restoreWrongSpelling },
+        { "restore: class", "class ", "class ", restoreWrongSpelling },
+        { "restore: coffee", "coffee ", "coffee ", restoreWrongSpelling },
+        { "restore: password", "password ", "password ", restoreWrongSpelling },
+        { "restore: VNI doubled mark key", "a11 ", "a11 ", []() { vRestoreIfWrongSpelling = 1; vInputType = vVNI; } },
+        { "restore: valid word after undo is kept", "baans ", "bấn ", restoreWrongSpelling },
+        { "restore: after backspace keeps marks of what is left", "tuows<q ", "tuwq ", restoreWrongSpelling },
+
+        // Quick telex keeps the capital of the first letter
+        { "quick telex: Ccaof", "Ccaof ", "Chào ", quickTelex },
+        { "quick telex: Ttif", "Ttif ", "Thì ", quickTelex },
+
+        // A w typed after the horn was added automatically is not an undo
+        { "horn: nuwocws", "nuwocws", "nước", telex },
+        { "horn: tuwongwf", "tuwongwf", "tường", telex },
+
+        // uo followed by u is ươu
+        { "horn: huwou", "huwou", "hươu", telex },
+        { "horn: ruwouj", "ruwouj", "rượu", telex },
+
+        // đ typed after the rest of the word
+        { "late d: doatdj", "doatdj", "đoạt", telex },
+        { "late d: diudj", "diudj", "địu", telex },
+        { "late d: duomdwj", "duomdwj", "đượm", telex },
+        { "late d: VNI doat95", "doat95", "đoạt", vni },
+
+        // th + uo + w gives ươ whenever something follows uo
+        { "horn: thuocws with free mark", "thuocws", "thước", []() { vFreeMark = 1; } },
+        { "horn: thuowcs", "thuowcs", "thước", telex },
+        { "horn: thuowr is still thuở", "thuowr", "thuở", telex },
     };
 
     int failed = 0;
+
+    // A space after a delete must not be reported to the app as another delete (it pops its
+    // VNI Windows / Unicode compound key lengths on extCode 2).
+    {
+        resetSettings();
+        type("as<");
+        vKeyHandleEvent(vKeyEvent::Keyboard, vKeyEventState::KeyDown, KEY_SPACE, 0, false);
+        if (pData->code == vDoNothing && pData->extCode == 2) {
+            failed++;
+            printf("FAIL  %-44s extCode=%d\n", "space after delete: extCode", pData->extCode);
+        } else {
+            printf("ok    space after delete: extCode\n");
+        }
+    }
+
+    // Convert tool
+    {
+        struct ConvertCase { const char* name; Uint8 from, to; const char* text; const char* expected; };
+        std::vector<ConvertCase> converts = {
+            { "convert: no case option keeps case", 0, 0, "Việt Nam Đường", "Việt Nam Đường" },
+            { "convert: unicode to unicode compound", 0, 3, "bã", nullptr },
+            { "convert: unicode to VNI Windows", 0, 2, "bã", nullptr },
+            { "convert: unicode to CP1258", 0, 4, "bã", nullptr },
+        };
+        for (const ConvertCase& c : converts) {
+            resetSettings();
+            convertToolToAllCaps = convertToolToAllNonCaps = convertToolToCapsFirstLetter = false;
+            convertToolToCapsEachWord = convertToolRemoveMark = false;
+            convertToolFromCode = c.from;
+            convertToolToCode = c.to;
+            std::string actual;
+            std::string expected;
+            if (c.expected) {
+                actual = convertUtil(c.text);
+                expected = c.expected;
+            } else {
+                // the last character must convert like any other: compare with a trailing space
+                actual = convertUtil(c.text) + " ";
+                expected = convertUtil(std::string(c.text) + " ");
+            }
+            if (actual != expected) {
+                failed++;
+                printf("FAIL  %-44s expected=\"%s\" actual=\"%s\"\n", c.name, expected.c_str(), actual.c_str());
+            } else {
+                printf("ok    %s\n", c.name);
+            }
+        }
+    }
 
     // Saved macro and smart switch data cut short at every length must load without reading past the end.
     {

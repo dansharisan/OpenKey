@@ -118,7 +118,7 @@ static vector<Uint32> _specialChar;
 static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
-static bool _deletedComposedChar = false;
+static bool _hasAutoHorn = false; //checkGrammar added the horn of uo by itself
 
 //function prototype
 void findAndCalculateVowel(const bool& forGrammar=false);
@@ -304,11 +304,12 @@ void checkGrammar(const int& deltaBackSpace) {
     if (_index >= 3) {
         for (i = _index-1; i >= 0; i--) {
             if (CHR(i) == KEY_N || CHR(i) == KEY_C || CHR(i) == KEY_I ||
-                CHR(i) == KEY_M || CHR(i) == KEY_P || CHR(i) == KEY_T) {
+                CHR(i) == KEY_M || CHR(i) == KEY_P || CHR(i) == KEY_T || CHR(i) == KEY_U) {
                 if (i - 2 >= 0 && CHR(i - 1) == KEY_O && CHR(i - 2) == KEY_U) {
                     if ((TypingWord[i-1] & TONEW_MASK) ^ (TypingWord[i-2] & TONEW_MASK)) {
                         TypingWord[i - 2] |= TONEW_MASK;
                         TypingWord[i - 1] |= TONEW_MASK;
+                        _hasAutoHorn = true;
                         isCheckedGrammar = true;
                         break;
                     }
@@ -456,6 +457,7 @@ void restoreLastTypingState() {
 }
 
 void startNewSession() {
+    _hasAutoHorn = false;
     _index = 0;
     hBPC = 0;
     hNCC = 0;
@@ -886,7 +888,13 @@ void insertW(const Uint16& data, const bool& isCaps) {
         hBPC = _index - VSI;
         hNCC = hBPC;
         
-        if (((TypingWord[VSI] & TONEW_MASK) && (TypingWord[VSI+1] & TONEW_MASK)) ||
+        if (_hasAutoHorn && (TypingWord[VSI] & TONEW_MASK) && (TypingWord[VSI+1] & TONEW_MASK)) {
+            //the user types the w of ươ after the engine already added it: nothing to do, not an undo
+            _hasAutoHorn = false;
+            hCode = vWillProcess;
+            hBPC = 0;
+            hNCC = 0;
+        } else if (((TypingWord[VSI] & TONEW_MASK) && (TypingWord[VSI+1] & TONEW_MASK)) ||
             ((TypingWord[VSI] & TONEW_MASK) && CHR(VSI+1) == KEY_I) ||
             ((TypingWord[VSI] & TONEW_MASK) && CHR(VSI+1) == KEY_A)){
             //restore and disable temporary
@@ -904,7 +912,7 @@ void insertW(const Uint16& data, const bool& isCaps) {
             if ((CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_O)) {
                 if (VSI - 2 >= 0 && CHR(VSI - 2) == KEY_T && CHR(VSI - 1) == KEY_H) {
                     TypingWord[VSI+1] |= TONEW_MASK;
-                    if (VSI + 2 < _index && CHR(VSI+2) == KEY_N) {
+                    if (VSI + 2 < _index) { //only a bare thuơ keeps u: thươn, thước, thượt...
                         TypingWord[VSI] |= TONEW_MASK;
                     }
                 } else if (VSI - 1 >= 0 && CHR(VSI - 1) == KEY_Q) {
@@ -1097,6 +1105,22 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
                 break;
             }
         }
+        
+        //đ typed after the rest of the word (doatdj -> đoạt): the word starts with its only d and
+        //spell checking has accepted it so far
+        if (!isChanged && vCheckSpelling && !tempDisableKey && _index >= 2 && CHR(0) == KEY_D) {
+            isCorect = true;
+            for (i = 1; i < _index; i++) {
+                if (CHR(i) == KEY_D) {
+                    isCorect = false;
+                    break;
+                }
+            }
+            if (isCorect) {
+                isChanged = true;
+                insertD(data, isCaps);
+            }
+        }
     
         if (!isChanged) {
             insertKey(data, isCaps);
@@ -1221,15 +1245,50 @@ void handleQuickTelex(const Uint16& data, const bool& isCaps) {
     hCode = vWillProcess;
     hBPC = 1;
     hNCC = 2;
-    hData[1] = _quickTelex[data][0] | (isCaps ? CAPS_MASK : 0);
+    hData[1] = _quickTelex[data][0] | (TypingWord[_index-1] & CAPS_MASK); //the first letter keeps its own case
     hData[0] = _quickTelex[data][1] | (isCaps ? CAPS_MASK : 0);
     insertKey(_quickTelex[data][1], isCaps, false);
 }
 
+//the keys that type TypingWord, for restoring it after characters were deleted
+void rebuildKeyStates() {
+    _stateIndex = 0;
+    for (ii = 0; ii < _index && _stateIndex < MAX_BUFF; ii++) {
+        Uint32 ch = TypingWord[ii];
+        Uint16 key = CHR(ii);
+        Uint32 caps = ch & CAPS_MASK;
+        if ((ch & STANDALONE_MASK) && vInputType != vVNI) {
+            KeyStates[_stateIndex++] = ProcessingChar[vInputType][8] | caps; //ư typed as w alone
+        } else {
+            KeyStates[_stateIndex++] = key | caps;
+            if ((ch & TONE_MASK) && _stateIndex < MAX_BUFF) { //â ê ô đ
+                if (key == KEY_D)
+                    KeyStates[_stateIndex++] = ProcessingChar[vInputType][9];
+                else
+                    KeyStates[_stateIndex++] = vInputType == vVNI ? ProcessingChar[vInputType][5] : key;
+            }
+            if ((ch & TONEW_MASK) && _stateIndex < MAX_BUFF) { //ă ơ ư
+                KeyStates[_stateIndex++] = vInputType == vVNI ? ProcessingChar[vInputType][key == KEY_A ? 8 : 7] : ProcessingChar[vInputType][8];
+            }
+        }
+        if ((ch & MARK_MASK) && _stateIndex < MAX_BUFF) {
+            Uint32 marks[] = {MARK1_MASK, MARK2_MASK, MARK3_MASK, MARK4_MASK, MARK5_MASK};
+            for (int m = 0; m < 5; m++) {
+                if (ch & marks[m]) {
+                    KeyStates[_stateIndex++] = ProcessingChar[vInputType][m];
+                    break;
+                }
+            }
+        }
+    }
+}
+
 bool checkRestoreIfWrongSpelling(const int& handleCode) {
+    //a doubled key undoes a mark (sorry -> sory), so the typed keys can differ from an unmarked word
+    bool keysDiffer = _stateIndex != _index;
     for (ii = 0; ii < _index; ii++) {
-        if (!IS_CONSONANT(CHR(ii)) &&
-            (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
+        if (keysDiffer || (!IS_CONSONANT(CHR(ii)) &&
+            (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK))) {
             
             hCode = handleCode;
             hBPC = _index;
@@ -1412,6 +1471,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 _upperCaseStatus = 0;
         }
     } else if (data == KEY_SPACE) {
+        hExt = 3; //one character for the app, not the delete or break code of the previous key
         if (!tempDisableKey && vCheckSpelling) {
             checkSpelling(true); //force check spelling
         }
@@ -1465,8 +1525,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 _stateIndex--;
             }
             if (_index > 0){
-                //a character with a tone or mark was typed with more than one key
-                _deletedComposedChar = (TypingWord[_index - 1] & (MARK_MASK | TONE_MASK | TONEW_MASK | STANDALONE_MASK)) != 0;
+                _hasAutoHorn = false;
                 _index--;
                 if (_longWordHelper.size() > 0) {
                     //right shift
@@ -1477,13 +1536,9 @@ void vKeyHandleEvent(const vKeyEvent& event,
                     _longWordHelper.pop_back();
                     _index++;
                 }
-                if (_deletedComposedChar) {
-                    //rebuild the typed keys from what is left so a later restore doesn't bring back deleted keys
-                    for (i = 0; i < _index; i++) {
-                        KeyStates[i] = CHR(i) | (TypingWord[i] & CAPS_MASK);
-                    }
-                    _stateIndex = _index;
-                }
+                //a character can come from several keys, so rebuild the keys from what is left;
+                //otherwise a later restore brings back deleted keys
+                rebuildKeyStates();
                 if (vCheckSpelling)
                     checkSpelling();
             }
@@ -1550,8 +1605,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         }
         
         if (hCode == vRestore) {
-            insertKey(data, _isCaps);
-            _stateIndex--;
+            insertKey(data, _isCaps); //KeyStates keeps both keys, so restore can bring back "ss" in "class"
         }
         
         updateMacroKey(data);

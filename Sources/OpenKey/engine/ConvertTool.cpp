@@ -39,6 +39,13 @@ static bool findKeyCode(const Uint32& charCode, const Uint8& code, int& j, int& 
     return false;
 }
 
+//lower case when asked for, and for the letters a case option doesn't capitalize;
+//with no case option the text keeps its case
+static bool shouldLowerCase(const bool& shouldUpperCase) {
+    return convertToolToAllNonCaps ||
+        ((convertToolToCapsFirstLetter || convertToolToCapsEachWord) && !shouldUpperCase);
+}
+
 static Uint16 getUnicodeCompoundMarkIndex(const Uint16& mark) {
     for (int i = 0; i < 5; i++) {
         if (mark == _unicodeCompoundMark[i]) {
@@ -46,6 +53,27 @@ static Uint16 getUnicodeCompoundMarkIndex(const Uint16& mark) {
         }
     }
     return 0;
+}
+
+//appends a character of the destination code table, which takes two units in some tables
+static void pushConverted(vector<wchar_t>& out, const Uint16& target) {
+    if (convertToolToCode == 0 || convertToolToCode == 1) { //Unicode
+        out.push_back(target);
+    } else if (convertToolToCode == 2 || convertToolToCode == 4) { //VNI, VN Locale 1258
+        if (HIBYTE(target) > 32) {
+            out.push_back((Uint8)target);
+            out.push_back(target>>8);
+        } else {
+            out.push_back((Uint8)target);
+        }
+    } else if (convertToolToCode == 3) { //Unicode Compound
+        if ((target >> 13) > 0) {
+            out.push_back(target & 0x1FFF);
+            out.push_back(_unicodeCompoundMark[(target>>13) - 1]);
+        } else {
+            out.push_back(target);
+        }
+    }
 }
 
 string convertUtil(const string& sourceString) {
@@ -90,7 +118,7 @@ string convertUtil(const string& sourceString) {
                 target = _codeTable[convertToolToCode][j][k];
                 if ((convertToolToAllCaps || shouldUpperCase) && k % 2 != 0) {
                     target = _codeTable[convertToolToCode][j][k-1];
-                } else if ((convertToolToAllNonCaps || !shouldUpperCase) && k % 2 == 0) {
+                } else if (shouldLowerCase(shouldUpperCase) && k % 2 == 0) {
                     target = _codeTable[convertToolToCode][j][k+1];
                 }
                 
@@ -104,23 +132,7 @@ string convertUtil(const string& sourceString) {
                     }
                 }
                 
-                if (convertToolToCode == 0 || convertToolToCode == 1) { //Unicode
-                    _temp.push_back(target);
-                } else if (convertToolToCode == 2 || convertToolToCode == 4) { //VNI, VN Locale 1258
-                    if (HIBYTE(target) > 32) {
-                        _temp.push_back((Uint8)target);
-                        _temp.push_back(target>>8);
-                    } else {
-                        _temp.push_back((Uint8)target);
-                    }
-                } else if (convertToolToCode == 3) { //Unicode Compound
-                    if ((target >> 13) > 0) {
-                        _temp.push_back(target & 0x1FFF);
-                        _temp.push_back(_unicodeCompoundMark[(target>>13) - 1]);
-                    } else {
-                        _temp.push_back(target);
-                    }
-                }
+                pushConverted(_temp, target);
                 shouldUpperCase = false;
                 hasBreak = false;
                 continue;
@@ -133,7 +145,7 @@ string convertUtil(const string& sourceString) {
             target = _codeTable[convertToolToCode][j][k];
             if ((convertToolToAllCaps || shouldUpperCase) && k % 2 != 0) {
                 target = _codeTable[convertToolToCode][j][k-1];
-            } else if ((convertToolToAllNonCaps || !shouldUpperCase) && k % 2 == 0) {
+            } else if (shouldLowerCase(shouldUpperCase) && k % 2 == 0) {
                 target = _codeTable[convertToolToCode][j][k+1];
             }
             
@@ -147,7 +159,8 @@ string convertUtil(const string& sourceString) {
                 }
             }
             
-            _temp.push_back(target);
+            //the last character only goes through here, so it needs the same per table split
+            pushConverted(_temp, target);
             shouldUpperCase = false;
             hasBreak = false;
             continue;
@@ -156,7 +169,7 @@ string convertUtil(const string& sourceString) {
         //if dont find => normal char
         if (convertToolToAllCaps || shouldUpperCase)
             _temp.push_back(towupper(data[i]));
-        else if (convertToolToAllNonCaps || !shouldUpperCase)
+        else if (shouldLowerCase(shouldUpperCase))
             _temp.push_back(towlower(data[i]));
         else
             _temp.push_back(data[i]);
