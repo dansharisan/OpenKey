@@ -49,7 +49,7 @@ extern int ConvertKeyStringToKeyCode(NSString *keyString, CGKeyCode fallback);
     __weak IBOutlet NSButton *CustomBeepSound;
     NSArray* tabviews, *tabbuttons;
     NSRect tabViewRect;
-    NSView* tabButtonBackground;
+    NSSegmentedControl* tabBar;
 }
 
 - (void)viewDidLoad {
@@ -68,17 +68,8 @@ extern int ConvertKeyStringToKeyCode(NSString *keyString, CGKeyCode fallback);
     //set correct tabgroup
     tabviews = [NSArray arrayWithObjects:self.tabviewPrimary, self.tabviewMacro, self.tabviewSystem, self.tabviewInfo, nil];
     tabbuttons = [NSArray arrayWithObjects:self.tabbuttonPrimary, self.tabbuttonMacro, self.tabbuttonSystem, self.tabbuttonInfo, nil];
-    NSButton* firstTabButton = [tabbuttons objectAtIndex:0];
-    NSRect tabButtonBackgroundRect = firstTabButton.frame;
-    for (NSButton* button in tabbuttons) {
-        tabButtonBackgroundRect = NSUnionRect(tabButtonBackgroundRect, button.frame);
-    }
-    tabButtonBackgroundRect = NSInsetRect(tabButtonBackgroundRect, -2, -2);
-    tabButtonBackground = [[NSView alloc] initWithFrame:tabButtonBackgroundRect];
-    [tabButtonBackground setWantsLayer:YES];
-    tabButtonBackground.layer.backgroundColor = [[NSColor windowBackgroundColor] CGColor];
-    [self.view addSubview:tabButtonBackground];
     tabViewRect = self.tabviewPrimary.frame;
+    [self createTabBar];
     for (NSBox* b in tabviews) {
         b.frame = tabViewRect;
     }
@@ -149,15 +140,54 @@ extern int ConvertKeyStringToKeyCode(NSString *keyString, CGKeyCode fallback);
     
     NSButton* button = [tabbuttons objectAtIndex:index];
     [button setState:NSControlStateValueOn];
-
-    [self.view addSubview:tabButtonBackground positioned:NSWindowAbove relativeTo:b];
-    for (NSButton* tabButton in tabbuttons) {
-        [self.view addSubview:tabButton positioned:NSWindowAbove relativeTo:nil];
-    }
+    tabBar.selectedSegment = index;
 }
 
 - (IBAction)onTabButton:(NSButton *)sender {
     [self showTab:sender.tag];
+}
+
+//one segmented control instead of the four overlapping push buttons of the storyboard, which macOS 26+
+//draws as separate capsules; it sits in the space between the box above and the tab content
+-(void)createTabBar {
+    NSView* parent = self.tabbuttonPrimary.superview;
+    NSMutableArray* labels = [NSMutableArray array];
+    NSRect buttonsRect = self.tabbuttonPrimary.frame;
+    for (NSButton* tabButton in tabbuttons) {
+        [labels addObject:tabButton.title];
+        buttonsRect = NSUnionRect(buttonsRect, tabButton.frame);
+        tabButton.hidden = YES;
+    }
+    tabBar = [NSSegmentedControl segmentedControlWithLabels:labels
+                                               trackingMode:NSSegmentSwitchTrackingSelectOne
+                                                     target:self
+                                                     action:@selector(onTabBar:)];
+    tabBar.segmentDistribution = NSSegmentDistributionFillEqually;
+    
+    //the free space starts at the top of the tab content and ends at the next box above it
+    CGFloat spaceBottom = NSMaxY(tabViewRect);
+    CGFloat spaceTop = CGFLOAT_MAX;
+    for (NSView* sibling in parent.subviews) {
+        if ([sibling isKindOfClass:[NSBox class]] && !sibling.hidden && NSMinY(sibling.frame) >= spaceBottom) {
+            spaceTop = MIN(spaceTop, NSMinY(sibling.frame));
+        }
+    }
+    if (spaceTop == CGFLOAT_MAX) {
+        spaceTop = NSMaxY(buttonsRect);
+    }
+    [tabBar sizeToFit];
+    if (NSHeight(tabBar.frame) > spaceTop - spaceBottom - 4) {
+        tabBar.controlSize = NSControlSizeSmall;
+        [tabBar sizeToFit];
+    }
+    CGFloat height = NSHeight(tabBar.frame);
+    tabBar.frame = NSMakeRect(NSMinX(buttonsRect), spaceBottom + floor((spaceTop - spaceBottom - height) / 2),
+                              NSWidth(buttonsRect), height);
+    [parent addSubview:tabBar];
+}
+
+- (void)onTabBar:(NSSegmentedControl *)sender {
+    [self showTab:sender.selectedSegment];
 }
 
 - (IBAction)onInputTypeChanged:(NSPopUpButton *)sender {
