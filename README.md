@@ -1,3 +1,44 @@
+# OpenKey (bản fork của dansharisan)
+
+Đây là bản fork của [tuyenvm/OpenKey](https://github.com/tuyenvm/OpenKey), giấy phép GPL v3 như bản gốc. Bản fork sửa lỗi, build được với Xcode mới và tự build để dùng hằng ngày. Phần giới thiệu gốc của OpenKey ở bên dưới.
+
+### Khác với bản chính thức
+- Bundle ID riêng `com.dansharisan.openkey`: không dùng chung cài đặt, quyền Accessibility hay mục khởi động cùng máy với bản chính thức. Lần đầu mở, cài đặt và gõ tắt của bản chính thức (nếu có) được chép sang.
+- Cần macOS 13 trở lên. Khởi động cùng máy dùng `SMAppService`, không cần app phụ.
+- Mặc định không tự kiểm tra cập nhật, vì việc đó dựa trên bản phát hành chính thức.
+- Bản Release bật hardened runtime.
+- Có bộ test cho engine gõ chữ, và CI build bản macOS lẫn Windows.
+
+### Build cho macOS
+Cần Xcode và một chứng chỉ ký "Apple Development" (Xcode → Settings → Accounts → Manage Certificates). Team ID là trường `OU` của chứng chỉ:
+
+```bash
+security find-certificate -c "Apple Development" -p | openssl x509 -noout -subject
+OPENKEY_TEAM=<team id> scripts/build-macos.sh          # Release
+OPENKEY_TEAM=<team id> scripts/build-macos.sh Debug clean
+```
+
+App nằm ở `build/DerivedData/Build/Products/Release/OpenKey.app`. Chép vào `/Applications` rồi cấp quyền trong System Settings → Privacy & Security → Accessibility. Nếu macOS vẫn báo chưa có quyền sau khi build lại (ví dụ khi đổi chứng chỉ), xoá OpenKey khỏi danh sách đó rồi thêm lại. Không có `OPENKEY_TEAM` thì script build bản không ký (dùng cho CI).
+
+### Test engine
+```bash
+tests/engine/run.sh                    # các ca gõ mẫu, chạy với AddressSanitizer/UBSan
+build/engine_test --fuzz 20000         # gõ ngẫu nhiên để dò lỗi bộ nhớ
+tests/engine/run.sh --probe tieesngs   # xem engine gõ ra gì với một chuỗi phím
+```
+
+### Lấy thay đổi từ bản gốc
+```bash
+git fetch upstream
+git merge upstream/master
+```
+Các file hay xung đột là `project.pbxproj` và `OpenKey.mm`.
+
+### Dữ liệu được lưu
+OpenKey không lưu nội dung bạn gõ. Cài đặt, gõ tắt và danh sách ứng dụng cho tính năng nhớ ngôn ngữ/bảng mã theo ứng dụng nằm trong `~/Library/Preferences/com.dansharisan.openkey.plist`.
+
+---
+
 
 # [OpenKey](http://open-key.org)
 ### [Download bản mới nhất](https://github.com/tuyenvm/OpenKey/releases)

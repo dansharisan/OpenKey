@@ -1,3 +1,5 @@
+> Bản fork này build bằng `scripts/build-macos.sh`, xem mục "Build cho macOS" trong README.md. Hướng dẫn dưới đây là của bản gốc, cho Xcode 10.
+
 ## Cách build cho macOS:
 Vì một số lý do mà OpenKey không thể đưa lêp Mac App Store được, nếu các bạn không yên tâm về file build chính thức từ tác giả, các bạn có thể tải mã nguồn về tự build lấy OpenKey cho mình. 
 
