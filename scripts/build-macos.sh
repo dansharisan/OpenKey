@@ -10,7 +10,8 @@
 # Without OPENKEY_TEAM the app is built unsigned (for CI); macOS won't keep its
 # Accessibility permission, so sign builds you use.
 #
-# The app is written to build/DerivedData/Build/Products/<config>/OpenKey.app
+# The app is written to build/DerivedData.noindex/Build/Products/<config>/OpenKey.app
+# (".noindex" keeps Spotlight from listing this copy next to the installed app)
 
 set -euo pipefail
 
@@ -32,8 +33,8 @@ xcodebuild \
     -project "$ROOT/Sources/OpenKey/macOS/OpenKey.xcodeproj" \
     -scheme OpenKey \
     -configuration "$CONFIG" \
-    -derivedDataPath "$ROOT/build/DerivedData" \
+    -derivedDataPath "$ROOT/build/DerivedData.noindex" \
     "${SIGNING[@]}" \
     $ACTION
 
-echo "Built: $ROOT/build/DerivedData/Build/Products/$CONFIG/OpenKey.app"
+echo "Built: $ROOT/build/DerivedData.noindex/Build/Products/$CONFIG/OpenKey.app"

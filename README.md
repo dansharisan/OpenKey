@@ -18,7 +18,7 @@ OPENKEY_TEAM=<team id> scripts/build-macos.sh          # Release
 OPENKEY_TEAM=<team id> scripts/build-macos.sh Debug clean
 ```
 
-App nằm ở `build/DerivedData/Build/Products/Release/OpenKey.app`. Chép vào `/Applications` rồi cấp quyền trong System Settings → Privacy & Security → Accessibility. Nếu macOS vẫn báo chưa có quyền sau khi build lại (ví dụ khi đổi chứng chỉ), xoá OpenKey khỏi danh sách đó rồi thêm lại. Không có `OPENKEY_TEAM` thì script build bản không ký (dùng cho CI).
+App nằm ở `build/DerivedData.noindex/Build/Products/Release/OpenKey.app`. Chép vào `/Applications` rồi cấp quyền trong System Settings → Privacy & Security → Accessibility. Nếu macOS vẫn báo chưa có quyền sau khi build lại (ví dụ khi đổi chứng chỉ), xoá OpenKey khỏi danh sách đó rồi thêm lại. Không có `OPENKEY_TEAM` thì script build bản không ký (dùng cho CI).
 
 ### Test engine
 ```bash
