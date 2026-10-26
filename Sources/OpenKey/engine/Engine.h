@@ -239,8 +239,9 @@ void vTempOffEngine(const bool& off=true);
 /**
  * the temporarily off hot key was tapped: turn the engine off for the next word,
  * or back on when it is already off
+ * returns true when the engine is now off
  */
-void vToggleTempOffEngine();
+bool vToggleTempOffEngine();
 
 /**
  * some utils function

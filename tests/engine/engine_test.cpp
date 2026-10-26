@@ -379,6 +379,20 @@ int main(int argc, char** argv) {
 
     int failed = 0;
 
+    // The toggle reports the new state, which the apps use to play the off or on sound.
+    {
+        resetSettings();
+        type("");
+        bool first = vToggleTempOffEngine();
+        bool second = vToggleTempOffEngine();
+        if (!first || second) {
+            failed++;
+            printf("FAIL  %-44s first=%d second=%d\n", "temp off: toggle reports off then on", first, second);
+        } else {
+            printf("ok    temp off: toggle reports off then on\n");
+        }
+    }
+
     // A space after a delete must not be reported to the app as another delete (it pops its
     // VNI Windows / Unicode compound key lengths on extCode 2).
     {

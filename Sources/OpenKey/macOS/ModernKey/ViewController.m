@@ -40,6 +40,7 @@ extern int vAutoCapsMacro;
 extern int vFixChromiumBrowser;
 extern int vPerformLayoutCompat;
 extern int ConvertKeyStringToKeyCode(NSString *keyString, CGKeyCode fallback);
+extern void PlayOnOffSound(bool on);
 
 //width of every settings pane; the window takes the height of the selected pane
 static const CGFloat kPaneWidth = 640;
@@ -206,10 +207,8 @@ static const CGFloat kPaneMargin = 24;
     [CustomSwitchKey.widthAnchor constraintEqualToConstant:64].active = YES;
     NSStackView* modifiers = [NSStackView stackViewWithViews:@[CustomSwitchControl, CustomSwitchOption, CustomSwitchCommand, CustomSwitchShift, CustomSwitchKey]];
     modifiers.spacing = 14;
-    CustomBeepSound = [self checkbox:@"Kêu beep khi chuyển chế độ" action:@selector(onBeepSound:) tip:nil];
     NSStackView* hotkey = [NSStackView stackViewWithViews:@[modifiers,
-        [self helpText:@"Bấm vào ô phím rồi nhấn một phím. Nhấn Delete để để trống: khi đó chỉ cần nhấn rồi nhả các phím bổ trợ đã chọn, ví dụ ⌃⇧."],
-        CustomBeepSound]];
+        [self helpText:@"Bấm vào ô phím rồi nhấn một phím. Nhấn Delete để để trống: khi đó chỉ cần nhấn rồi nhả các phím bổ trợ đã chọn, ví dụ ⌃⇧."]]];
     hotkey.orientation = NSUserInterfaceLayoutOrientationVertical;
     hotkey.alignment = NSLayoutAttributeLeading;
     hotkey.spacing = 8;
@@ -236,6 +235,15 @@ static const CGFloat kPaneMargin = 24;
     //temporarily off
     self.TempOffOpenKey = [self checkbox:@"Tạm tắt OpenKey bằng phím ⌘" action:@selector(onTempOffOpenKeyByHotKey:) tip:nil];
     
+    //sounds for both hot keys above; the setting is still the beep bit of the switch key
+    CustomBeepSound = [self checkbox:@"Phát âm báo khi bật hoặc tắt tiếng Việt bằng phím tắt" action:@selector(onBeepSound:) tip:nil];
+    NSButton* previewOn = [NSButton buttonWithTitle:@"Nghe âm bật" target:self action:@selector(onPreviewSound:)];
+    previewOn.tag = 1;
+    NSButton* previewOff = [NSButton buttonWithTitle:@"Nghe âm tắt" target:self action:@selector(onPreviewSound:)];
+    previewOff.tag = 0;
+    NSStackView* previews = [NSStackView stackViewWithViews:@[previewOn, previewOff]];
+    previews.spacing = 10;
+    
     return [self pane:@[
         [self section:nil rows:@[form]],
         [self section:@"Dấu và chính tả" rows:@[
@@ -246,6 +254,11 @@ static const CGFloat kPaneMargin = 24;
         [self section:@"Gõ từ tiếng Anh" rows:@[
             self.TempOffOpenKey,
             [self indented:@[[self helpText:@"Chạm ⌘ (nhấn rồi nhả, không kèm phím khác) rồi gõ một từ: từ đó không bị bỏ dấu. Gõ dấu cách là tiếng Việt trở lại. Lỡ chạm thì chạm ⌘ lần nữa để huỷ."]]]]],
+        [self section:@"Âm báo" rows:@[
+            CustomBeepSound,
+            [self indented:@[
+                [self helpText:@"Khi chuyển Anh/Việt bằng phím chuyển, và khi chạm ⌘ để tạm tắt hoặc huỷ tạm tắt. Âm bật và âm tắt khác nhau, để biết ngay tiếng Việt đang bật hay tắt."],
+                previews]]]],
     ]];
 }
 
@@ -567,6 +580,10 @@ static const CGFloat kPaneMargin = 24;
     vSwitchKeyStatus &= 0x00FFFFFF;
     vSwitchKeyStatus |= ((unsigned int)character<<24);
     [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
+}
+
+- (void)onPreviewSound:(NSButton *)sender {
+    PlayOnOffSound(sender.tag == 1);
 }
 
 - (IBAction)onBeepSound:(NSButton *)sender {

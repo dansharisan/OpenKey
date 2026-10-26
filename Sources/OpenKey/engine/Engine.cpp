@@ -1326,10 +1326,10 @@ void vTempOffEngine(const bool& off) {
     _tempOffKeys.clear();
 }
 
-void vToggleTempOffEngine() {
+bool vToggleTempOffEngine() {
     if (!_willTempOffEngine) {
         vTempOffEngine(true);
-        return;
+        return true;
     }
     //back on in the middle of a word: give the engine the letters typed while it was off,
     //so the rest of the word still gets its marks (vie, tap, ej -> việ)
@@ -1341,6 +1341,7 @@ void vToggleTempOffEngine() {
             hMacroKey.push_back(key);
     }
     _tempOffKeys.clear();
+    return false;
 }
 
 bool checkQuickConsonant() {

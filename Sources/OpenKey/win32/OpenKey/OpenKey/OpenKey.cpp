@@ -415,13 +415,18 @@ bool checkHotKey(int hotKeyData, bool checkKeyCode = true) {
 	return true;
 }
 
+//a sound when a hot key turns Vietnamese typing on or off (switch key, temporary off), different for each
+static void playVietnameseOnOffSound(bool on) {
+	if (HAS_BEEP(vSwitchKeyStatus))
+		MessageBeep(on ? MB_ICONASTERISK : MB_OK);
+}
+
 void switchLanguage() {
 	if (vLanguage == 0)
 		vLanguage = 1;
 	else
 		vLanguage = 0;
-	if (HAS_BEEP(vSwitchKeyStatus))
-		MessageBeep(MB_OK);
+	playVietnameseOnOffSound(vLanguage == 1);
 	AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 	if (vUseSmartSwitchKey) {
 		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
@@ -570,7 +575,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				vTempOffSpellChecking();
 			}
 			if (vTempOffOpenKey && !_hasJustUsedHotKey && _lastFlag & MASK_ALT) {
-				vToggleTempOffEngine(); //a second tap cancels it
+				bool off = vToggleTempOffEngine(); //a second tap cancels it
+				if (vLanguage == 1)
+					playVietnameseOnOffSound(!off);
 			}
 			_lastFlag = _flag;
 			_hasJustUsedHotKey = false;

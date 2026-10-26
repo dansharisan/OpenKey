@@ -125,7 +125,7 @@ BEGIN
     CONTROL         "Win",IDC_CHECK_SWITCH_KEY_WIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,126,40,28,10
     CONTROL         "Shift",IDC_CHECK_SWITCH_KEY_SHIFT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,158,40,31,10
     EDITTEXT        IDC_SWITCH_KEY_KEY,193,38,35,12,ES_CENTER | ES_AUTOHSCROLL
-    CONTROL         "Kêu Beep",IDC_CHECK_SWITCH_KEY_BEEP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,243,40,43,10
+    CONTROL         "Âm báo",IDC_CHECK_SWITCH_KEY_BEEP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,243,40,43,10
     LTEXT           "Chế độ gõ:",IDC_STATIC,14,60,36,8
     CONTROL         "Tiếng Việt",IDC_RADIO_METHOD_VIETNAMESE,"Button",BS_AUTORADIOBUTTON,64,59,47,10
     CONTROL         "Tiếng Anh",IDC_RADIO_METHOD_ENGLISH,"Button",BS_AUTORADIOBUTTON,158,59,48,10
@@ -505,7 +505,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_STRING_SWITCH_KEY   "Nhập phím chuyển hoặc để trống"
-    IDS_STRING_BEEP         "Kêu tiếng bíp mỗi khi chuyển chế độ gõ, không áp dụng với Loại trừ ứng dụng thông minh"
+    IDS_STRING_BEEP         "Phát âm báo khi bật hoặc tắt tiếng Việt bằng phím tắt: khi chuyển Anh/Việt và khi chạm Alt để tạm tắt hoặc huỷ tạm tắt. Âm bật và âm tắt khác nhau"
     IDS_STRING_VIET         "Bật chế độ gõ Tiếng Việt"
     IDS_STRING_ENG          "Bật chế độ gõ Tiếng Anh"
     IDS_STRING_CODE         "Chọn bảng mã cần gõ"

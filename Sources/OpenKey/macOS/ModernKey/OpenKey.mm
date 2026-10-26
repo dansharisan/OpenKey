@@ -552,13 +552,26 @@ extern "C" {
         return true;
     }
     
+    //the sound for Vietnamese typing turned on or off; NSSound plays asynchronously,
+    //so this is fine in the tap callback
+    void PlayOnOffSound(bool on) {
+        NSSound* sound = [NSSound soundNamed:on ? @"Tink" : @"Pop"];
+        [sound stop]; //play from the start when tapped quickly
+        [sound play];
+    }
+    
+    //a short sound when a hot key turns Vietnamese typing on or off (switch key, temporary off)
+    void PlayVietnameseOnOffSound(bool on) {
+        if (HAS_BEEP(vSwitchKeyStatus))
+            PlayOnOffSound(on);
+    }
+    
     void switchLanguage() {
         if (vLanguage == 0)
             vLanguage = 1;
         else
             vLanguage = 0;
-        if (HAS_BEEP(vSwitchKeyStatus))
-            NSBeep();
+        PlayVietnameseOnOffSound(vLanguage == 1);
         [appDelegate onImputMethodChanged:YES];
         startNewSession();
     }
@@ -682,7 +695,10 @@ extern "C" {
                     vTempOffSpellChecking();
                 }
                 if (vTempOffOpenKey && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskCommand) {
-                    vToggleTempOffEngine(); //a second tap cancels it
+                    bool off = vToggleTempOffEngine(); //a second tap cancels it
+                    if (vLanguage == 1) {
+                        PlayVietnameseOnOffSound(!off);
+                    }
                 }
                 _lastFlag = 0;
                 _hasJustUsedHotKey = false;
