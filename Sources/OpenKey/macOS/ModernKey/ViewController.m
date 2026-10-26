@@ -257,7 +257,7 @@ static const CGFloat kPaneMargin = 24;
         [self section:@"Âm báo" rows:@[
             CustomBeepSound,
             [self indented:@[
-                [self helpText:@"Khi chuyển Anh/Việt bằng phím chuyển, và khi chạm ⌘ để tạm tắt hoặc huỷ tạm tắt. Âm bật và âm tắt khác nhau, để biết ngay tiếng Việt đang bật hay tắt."],
+                [self helpText:@"Khi chuyển Anh/Việt bằng phím chuyển, và khi chạm ⌘ để tạm tắt hoặc huỷ tạm tắt. Bật tiếng Việt: hai nốt đi lên; tắt: hai nốt trầm đi xuống."],
                 previews]]]],
     ]];
 }

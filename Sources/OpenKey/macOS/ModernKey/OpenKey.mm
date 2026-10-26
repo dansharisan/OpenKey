@@ -552,10 +552,42 @@ extern "C" {
         return true;
     }
     
+    //two short notes as a WAV sound: rising and high for on, falling and lower for off, so they are
+    //easy to tell apart (the short system sounds such as Tink and Pop sound too much alike)
+    NSSound* MakeTwoNoteSound(double firstHz, double secondHz) {
+        const uint32_t rate = 44100;
+        const uint32_t noteSamples = rate * 9 / 100; //90 ms per note
+        const uint32_t count = noteSamples * 2;
+        const uint32_t dataSize = count * 2;
+        NSMutableData* wav = [NSMutableData dataWithLength:44 + dataSize];
+        uint8_t* bytes = (uint8_t*)wav.mutableBytes;
+        uint32_t u32;
+        uint16_t u16;
+        memcpy(bytes, "RIFF", 4); u32 = 36 + dataSize; memcpy(bytes + 4, &u32, 4);
+        memcpy(bytes + 8, "WAVEfmt ", 8); u32 = 16; memcpy(bytes + 16, &u32, 4);
+        u16 = 1; memcpy(bytes + 20, &u16, 2); //PCM
+        u16 = 1; memcpy(bytes + 22, &u16, 2); //mono
+        memcpy(bytes + 24, &rate, 4); u32 = rate * 2; memcpy(bytes + 28, &u32, 4);
+        u16 = 2; memcpy(bytes + 32, &u16, 2); u16 = 16; memcpy(bytes + 34, &u16, 2);
+        memcpy(bytes + 36, "data", 4); memcpy(bytes + 40, &dataSize, 4);
+        int16_t* samples = (int16_t*)(bytes + 44);
+        for (uint32_t i = 0; i < count; i++) {
+            double hz = i < noteSamples ? firstHz : secondHz;
+            double t = (double)(i % noteSamples) / rate;
+            double noteLength = (double)noteSamples / rate;
+            //quick fade in, longer fade out, so the notes don't click
+            double envelope = fmin(1.0, t / 0.005) * fmin(1.0, (noteLength - t) / 0.04);
+            samples[i] = (int16_t)(sin(2 * M_PI * hz * i / rate) * envelope * 0.3 * 32767);
+        }
+        return [[NSSound alloc] initWithData:wav];
+    }
+    
     //the sound for Vietnamese typing turned on or off; NSSound plays asynchronously,
     //so this is fine in the tap callback
     void PlayOnOffSound(bool on) {
-        NSSound* sound = [NSSound soundNamed:on ? @"Tink" : @"Pop"];
+        static NSSound* onSound = MakeTwoNoteSound(784, 1175); //G5 -> D6
+        static NSSound* offSound = MakeTwoNoteSound(587, 392); //D5 -> G4
+        NSSound* sound = on ? onSound : offSound;
         [sound stop]; //play from the start when tapped quickly
         [sound play];
     }

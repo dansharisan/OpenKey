@@ -3,7 +3,7 @@
 ##### Version 2.1.0 (bản fork)
 - Build được với Xcode 27; cần macOS 13; bundle ID riêng; hardened runtime.
 - Sửa lỗi bộ nhớ và lỗi gõ trong engine (gõ `w` đầu từ, gõ tắt phụ âm khi từ quá dài, dấu trên `d`, click chuột sau từ sai chính tả, gõ tắt bung lần hai, khôi phục sau khi xoá, `THUOWR`...), có bộ test kèm theo.
-- Chạm phím tạm tắt (⌘ trên macOS, Alt trên Windows) lần nữa để huỷ tạm tắt. Âm báo khác nhau khi bật và khi tắt tiếng Việt bằng phím tắt (chuyển Anh/Việt, tạm tắt), bật/tắt trong mục "Âm báo".
+- Chạm phím tạm tắt (⌘ trên macOS, Alt trên Windows) lần nữa để huỷ tạm tắt. Âm báo khác nhau khi bật (hai nốt đi lên) và khi tắt (hai nốt đi xuống) tiếng Việt bằng phím tắt (chuyển Anh/Việt, tạm tắt), bật/tắt trong mục "Âm báo".
 - macOS: cửa sổ cài đặt mới theo kiểu Settings của macOS (5 mục, nhóm rõ ràng, dễ dùng bằng bàn phím và VoiceOver).
 - macOS: tự bật lại event tap khi bị macOS tắt, khởi động cùng máy dùng SMAppService, nhớ bảng mã theo ứng dụng chạy độc lập với nhớ ngôn ngữ, hỗ trợ bàn phím Dvorak tốt hơn, nhiều lỗi nhỏ.
 - Windows: không còn lỗi không mở được trên Windows 10, hook bàn phím không bị Windows gỡ, trình cập nhật an toàn hơn, phím tắt mặc định Alt+Z hoạt động.
